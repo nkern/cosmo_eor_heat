@@ -1,19 +1,32 @@
 #!/bin/bash
 
 # Get time
+echo '--------------------------------------------'
 start_d=($(date))
 echo ...Start Time: ${start_d[@]}
+echo '--------------------------------------------'
+echo ''
 
 # Go to Working Directory
+echo '--------------------------------------------'
 cd @@working_direc@@/Programs
+echo "working directory = @@working_direc@@"
+echo '--------------------------------------------'
+echo ''
 
 # Attach Programs/ to PATH
+echo '--------------------------------------------'
 current_dir="$(pwd)"
 export PATH="$current_dir":$PATH
 echo "PATH = "$PATH
+echo '--------------------------------------------'
+echo ''
 
 # Echo fisher params file
-cat ../fisher_params.py
+echo '--------------------------------------------'
+cat ../mcmc_params.py
+echo '--------------------------------------------'
+echo ''
 
 # Remove finish file
 rm ../finish.txt
@@ -27,7 +40,7 @@ make clean
 # Make finish file
 touch ../finish.txt
 end_d=($(date))
-echo ...End Tim: ${end_d[@]}
+echo ...End Time: ${end_d[@]}
 
 echo "Start Time: "${start_d[@]} >> ../finish.txt
 echo "End Time  : "${end_d[@]} >> ../finish.txt

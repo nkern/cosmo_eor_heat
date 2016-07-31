@@ -1,13 +1,13 @@
 #!/bin/bash
-#SBATCH --partition=debug
-#SBATCH --nodes=2
+#SBATCH --partition=regular
+#SBATCH --nodes=1
 #SBATCH --time=30:00
 #SBATCH --job-name=21cmFAST
 #SBATCH --output=job_%j.out
 #SBATCH --qos=normal
 
 echo "--------------------------------"
-echo "running slurm_21cmFAST3.sh"
+echo "running slurm_21cmFAST.sh"
 echo start: $(date)
 echo ""
 
@@ -42,17 +42,18 @@ for i in $(seq 1 $Nseq)
 	echo ''
 	echo '...submitting srun'
 	echo '-------------------------'
-	srun -N $nodes -n $tasks -c $cpus --mem-per-cpu=$CPUMem -o job"$SLURM_JOBID"_seq"$i"_task%2t.out --multi-prog MPMD"$SLURM_JOBID"_"$i".conf
+	srun -N $nodes -n $tasks -c $cpus --mem-per-cpu=$CPUMem -o job"$SLURM_JOBID"_seq"$i"_task%2t.out --multi-prog MPMD"$SLURM_JOBID"_"$i".conf &
 	echo ''
 	echo '...sending jobout files to direcs'
 	echo '-------------------------'
-	python config_multiprog.py jobout job"$SLURM_JOBID"_seq"$i"_task ${dirs[@]}
+	(sleep 10; python config_multiprog.py jobout job"$SLURM_JOBID"_seq"$i"_task ${dirs[@]}) &
+	wait
 	begin=$((begin+length))
 	echo "==========================="
 	echo ""
 	done
 
 echo ""
-echo "done with slurm_21cmFAST3.sh"
+echo "done with slurm_21cmFAST.sh"
 echo end: $(date)
 echo "--------------------------------"
