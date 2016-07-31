@@ -39,13 +39,13 @@ if __name__ == '__main__':
 		if sample_gauss == True:
 			# Multivariate Gaussian
 			cov = np.eye(len(par))*parbound**2
-			samples = np.round(stats.multivariate_normal.rvs(mean=params_fid,cov=cov,size=N_samples),5)
+			samples = np.round(stats.multivariate_normal.rvs(mean=params_fid,cov=cov,size=N_samples),7)
 
 			# Check for negative values
 			while True:
 				neg = np.where(samples < 0)
 				if len(neg[0]) > 0:
-					new_samples = np.round(stats.multivariate_normal.rvs(mean=params_fid,cov=cov,size=len(neg[0])),6)
+					new_samples = np.round(stats.multivariate_normal.rvs(mean=params_fid,cov=cov,size=len(neg[0])),7)
 					samples[neg[0]] = new_samples
 				else:
 					break
@@ -63,7 +63,7 @@ if __name__ == '__main__':
 			samples = np.array(samples)[::-1]
 
 		# Write out samples to new fits file
-		filename = 'TS_samples3.fits'
+		filename = 'TS_samples2.fits'
 		ts_samples = {}
 		N = len(params)
 		keys = params
@@ -72,44 +72,37 @@ if __name__ == '__main__':
 
 		fits_table(ts_samples,keys,filename,clobber=True)
 
-	if write_direcs == True:
-		grid = fits.open('TS_samples3.fits')[1].data
+	if compile_direcs == True:
+		grid = fits.open('CV_samples.fits')[1].data
 		names = grid.names
 		grid = fits_data(grid)
 		gridf = np.array( map(lambda x: grid[x], names) ).T
-		grid = np.array( map(lambda y: map(lambda x: "%07.3f" % x, y), grid) )
+		grid = np.array( map(lambda y: map(lambda x: "%07.3f" % x, y), gridf) )
 
 		direcs = []
 		zipped = np.array(map(lambda x: zip(np.array(params)[[6,10]],x),grid.T[[6,10]].T))
+		zipped = np.array(map(lambda x: zip(np.array(params),x),grid))
+		j = 0
 		for i in range(len(grid)):
-			direcs.append('_'.join(map(lambda x: '_'.join(x),zipped[i])))
+			direcs.append('_'.join(map(lambda x: '_'.join(x),zipped[i][j][np.newaxis,:])))
+			if i % 50 == 0 and i != 0: j += 1
 
 		direcs = np.array(direcs)	
-	
-		f = open('direcs.tab','w')
-		for i in range(len(direcs)):
-			f.write(direcs[i]+'\n')
 
-		f.close()
+		if write_direcs == True:	
+			f = open('cv_direcs.tab','w')
+			f.write('\n'.join(map(lambda x: base_direc+x,direcs)))
+			f.close()
 
 
 	if build_direcs == True:
 
 		# Single or multiple directories?
-		single_direc = True
-
+		single_direc = False
 		if single_direc == True:
-			grid = np.array(params_fid)[:,np.newaxis].T
+			gridf = np.array(params_fid)[:,np.newaxis].T
+			grid = np.array( map(lambda y: map(lambda x: "%07.3f" % x, y), gridf) )
 			direcs = ['_'.join(map(lambda x: '_'.join(x),np.array(zip(np.array(params)[[6,10]],np.array(map(lambda x: "%07.3f" % x, grid[0]))[[6,10]]))))]
-
-		else:
-			# Load grid samples
-			grid = fits.open('TS_samples2.fits')[1].data
-			direcs = np.loadtxt('direcs.tab',dtype='str')
-
-			# Make sure they match
-			if '_'.join(map(lambda x: '_'.join(x),np.array(zip(np.array(params)[[6,10]],np.array(map(lambda x: "%07.3f" % x, grid[0]))[[6,10]])))) != direcs[0] or '_'.join(map(lambda x: '_'.join(x),np.array(zip(np.array(params)[[6,10]],np.array(map(lambda x: "%07.3f" % x, grid[-1]))[[6,10]])))) != direcs[-1]:
-				raise NameError
 
 		# Iterate over Parameters
 		N = len(grid)
@@ -156,18 +149,21 @@ if __name__ == '__main__':
 			# Insert PBS file
 			full_direc = direc_root+'/'+working_direc
 			os.system("sed -e 's#@@working_direc@@#"+full_direc+"#g;s#@@command@@#"+command+"#g;' < drive_21cmFAST.sh > "+working_direc+"/run_21cmFAST.sh")
+			os.system("chmod 755 "+working_direc+"/run_21cmFAST.sh")
 
 
 	if send_slurm_jobs == True:
 		# Assign run variables
-		Nruns       = 500					# Total number of simulations we need to run
-		Njobs       = 5					# Number of different SLURM jobs to submit
-		Nnodes      = 5					# Number of nodes to request per job
-		Ntasks      = 4 * Nnodes		# Number of individual tasks (processes) to run per node
-		Ncpus       = 272./Ntasks		# Number of CPUs to allocate per task (threads)
-		Nseq        = 5					# Number of sequential simulations to run per task
-		direc_file	= 'rerun.tab'	# File containing directories to be run
-		walltime	= '28:00:00'		# Amount of walltime for slurm job
+		Nruns       	= 4000						# Total number of simulations we need to run
+		Njobs       	= 5							# Number of different SLURM jobs to submit
+		Nnodes      	= 10						# Number of nodes to request per job
+		tasks_per_node	= 16						# Number of tasks to run per node
+		Ntasks      	= tasks_per_node * Nnodes	# Number of individual tasks (processes) to run per node
+		cpus_per_task	= 2							# Number of CPUs to allocate per task (threads)
+		Nseq        	= 5							# Number of sequential simulations to run per task
+		direc_file		= 'direcs.tab'				# File containing directories to be run
+		walltime		= '07:20:00'				# Amount of walltime for slurm job
+		base_direc		= 'param_space/gauss_hera127/'
 
 		Nstart = 0
 
@@ -177,25 +173,29 @@ if __name__ == '__main__':
 		job_file.close()
 
 		job_string[2]	= "#SBATCH --nodes="+str(Nnodes)
-		job_string[4]	= "#SBATCH --time="+str(walltime)
-		job_string[15]	= "IFS=$'\\r\\n' command eval 'direcs=($(<"+str(direc_file)+"))'"
-		job_string[19]	= "begin="+str(Nstart)
-		job_string[20]	= "tot_length="+str(Nruns)
-		job_string[24]	= "Nseq="+str(Nseq)
-		job_string[25]	= "begin="+str(Nstart)
-		job_string[26]	= "length="+str(Ntasks)
+		job_string[3]	= "#SBATCH --ntasks-per-node="+str(tasks_per_node)
+		job_string[4]	= "#SBATCH --cpus-per-task="+str(cpus_per_task)
+		job_string[5]	= "#SBATCH --time="+str(walltime)
+		job_string[16]	= "IFS=$'\\r\\n' command eval 'direcs=($(<"+str(direc_file)+"))'"
+		job_string[17]	= "basedir='"+base_direc+"'"
+		job_string[20]	= "begin="+str(Nstart)
+		job_string[21]	= "tot_length="+str(Nruns)
+		job_string[25]	= "Nseq="+str(Nseq)
+		job_string[26]	= "begin="+str(Nstart)
+		job_string[27]	= "length="+str(Ntasks)
+
 		for i in range(Njobs):
 			print ''
 			print 'running job #'+str(i)
 			print '-'*30
 
 			this_job_string = np.copy(job_string)
-			this_job_string[25] = 'begin='+str(Nstart + i*Ntasks*Nseq)
+			this_job_string[26] = 'begin='+str(Nstart + i*Ntasks*Nseq)
 			file = open('slurm_21cmFAST_auto.sh','w')
 			file.write('\n'.join(this_job_string))
 			file.close()
 
-			os.system('sbatch slurm_21cmFAST_auto.sh')
+		#	os.system('sbatch slurm_21cmFAST_auto.sh')
 
 		Nleftover = Nruns % (Ntasks*Nseq*Njobs)
 		Nseq = Nruns / (Ntasks*Nseq*Njobs)
@@ -205,9 +205,9 @@ if __name__ == '__main__':
 			print '-'*30
 
 			this_job_string = np.copy(job_string)
-			this_job_string[24] = 'Nseq='+str(1)
-			this_job_string[25] = 'begin='+str(Nstart + (i+1)*Ntasks*Nseq)
-			this_job_string[26] = 'length='+str(Nleftover)
+			this_job_string[25] = 'Nseq='+str(1)
+			this_job_string[26] = 'begin='+str(Nstart + (i+1)*Ntasks*Nseq)
+			this_job_string[27] = 'length='+str(Nleftover)
 			file = open('slurm_21cmFAST_auto.sh','w')
 			file.write('\n'.join(this_job_string))
 			file.close()

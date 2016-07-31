@@ -51,9 +51,7 @@ if __name__ == "__main__":
 
 	###############################
 	## Load Training Set samples ##
-	grid1	= fits_to_array(fits.open('TS_samples1.fits')[1].data)
-	grid2	= fits_to_array(fits.open('TS_samples2.fits')[1].data)
-	grid	= np.vstack([grid1,grid2])
+	grid	= fits_to_array(fits.open('TS_samples1.fits')[1].data)
 	gridf	= np.array(grid,float)
 	grid	= np.array( map(lambda y: map(lambda x: "%07.3f" % x, y), grid) )
 
@@ -101,21 +99,25 @@ if __name__ == "__main__":
 		if new_direcs == True:
 			new_direcs = []
 			for i in range(len(direcs)):
-				if len(fnmatch.filter(os.listdir('param_space/'+direcs[i]+'/Output_file/Deldel_T_power_spec'),'ps_interp*')) == 0:
+				if len(fnmatch.filter(os.listdir('param_space/'+direcs[i]+'/Output_files/Deldel_T_power_spec'),'ps_interp*')) == 0:
 					new_direcs.append(direcs[i])
 			direcs = np.array(new_direcs)
 
+		# Use only a single directory?
 		single_direc = True
 		if single_direc == True:
-			direcs = ['mock_observation']
+			direcs = ['fiducial_run']
 
+		# Iterate through directories
 		for i in range(len(direcs)):
 			print 'working on direc '+direcs[i]
+			# Get PS data
 			k_data = []
 			ps_data = []
 			z_data = []
 			ps_files = fnmatch.filter(os.listdir('param_space/'+direcs[i]+'/Output_files/Deldel_T_power_spec'),'ps_no_halos*')
 			ps_files = sorted(ps_files)
+			glob_par_file = 'global_params.tab'
 			for j in range(len(ps_files)):
 				kdat,psdat = np.loadtxt('param_space/'+direcs[i]+'/Output_files/Deldel_T_power_spec/'+ps_files[j],usecols=(0,1),unpack=True)
 				zdat = float(ps_files[j][13:19])
@@ -126,12 +128,26 @@ if __name__ == "__main__":
 			k_data = np.array(k_data)
 			ps_data = np.array(ps_data)
 			z_data = np.array(z_data)
+
+			# Get global parameter data (nf and Tb)
+			gp_z, gp_nf, gp_Tb = np.loadtxt('param_space/'+direcs[i]+'/global_params.tab',unpack=True)
+			gp_data = np.vstack([gp_nf,gp_Tb]).T
+
 			ps_pred = 10**curve_interp(z_array,z_data,np.log10(ps_data),n=3,degree=2)
+			gp_pred = curve_interp(z_array,gp_z,gp_data,n=3,degree=2)
+
+			# Write to file
+			f1 = open('param_space/'+direcs[i]+'/global_params_interp.tab','w')
+			f1.write('# z, nf, Tb\n')
 			for j in range(len(z_array)):
-				f = open('param_space/'+direcs[i]+'/Output_files/Deldel_T_power_spec/ps_interp_z%06.2f.txt'%z_array[j],'w')
+				f1.write(str(z_array[j])+'\t'+str(gp_pred.T[0][j]) + '\t' + str(gp_pred.T[1][j]) + '\n')
+
+				f2 = open('param_space/'+direcs[i]+'/Output_files/Deldel_T_power_spec/ps_interp_z%06.2f.txt'%z_array[j],'w')
 				for k in range(k_data.shape[1]):
-					f.write(str(k_data[0][k])+'\t'+str(ps_pred[j][k])+'\n')
-				f.close()
+					f2.write(str(k_data[0][k])+'\t'+str(ps_pred[j][k])+'\n')
+				f2.close()
+
+			f1.close()
 
 	## Calculate Telescope Sensitivity ##
 	if calc_sense == True:
@@ -209,8 +225,8 @@ if __name__ == "__main__":
 			# Load PS and global data if file w/ all the info doesn't exist
 			print '...working on direc = '+direc
 			ps_files        = np.array(sorted(fnmatch.filter(os.listdir(base_direc+direc+'/'+ps_direc),ps_keep)))
-			global_file	= base_direc+direc+'/'+'global_params.tab'
-			global_data	= np.loadtxt(global_file,usecols=(1,2),unpack=True).T[::-1][z_select]
+			global_file	= base_direc+direc+'/global_params_interp.tab'
+			global_data	= np.loadtxt(global_file,usecols=(1,2),unpack=True).T[::-1][z_select][::-1]
 			sample_data = []
 			for i in range(len(ps_files)):
 				ps_data	= np.loadtxt(base_direc+direc+'/'+ps_direc+ps_files[i],delimiter='\t',usecols=(1,),unpack=True)[k_select]
@@ -233,24 +249,24 @@ if __name__ == "__main__":
 	############################
 
 	## Get fiducial data, remove from samples, slice out eval_samples ##
-	fid_direc = 'zeta_040.000_numin_300.000'
-	#fid_params = np.loadtxt(base_direc+fid_direc+'/param_vals.tab',usecols=(1,))
-	#fid_ind = np.where(direcs==fid_direc)[0][0]
-	#fid_data = data[fid_ind]
-	fid_data = np.array(map(lambda x: np.median(x[np.where((np.isnan(x)!=True)|(x==0))]),data.T))
-	fid_params = np.array(map(np.median,data.T))
+	fid_direc = 'fiducial_run'
+	fid_params = np.loadtxt(base_direc+fid_direc+'/param_vals.tab',usecols=(1,))
+	fid_ind = np.where(direcs==fid_direc)[0][0]
+	fid_data = data[fid_ind]
+	#fid_data = np.array(map(lambda x: np.median(x[np.where((np.isnan(x)!=True)|(x==0))]),data.T))
+	#fid_params = np.array(map(np.median,data.T))
 	fid_rm = direcs!=fid_direc
 
-	data	= data[fid_rm]
-	grid	= grid[fid_rm]
-	gridf	= gridf[fid_rm]
-	direcs	= direcs[fid_rm]
-	indices	= indices[fid_rm]
-	indices	= np.argsort(indices)
-	direcs	= direcs[fid_rm]
+	#data	= data[fid_rm]
+	#grid	= grid[fid_rm]
+	#gridf	= gridf[fid_rm]
+	#direcs	= direcs[fid_rm]
+	#indices	= indices[fid_rm]
+	#indices	= np.argsort(indices)
+	#direcs	= direcs[fid_rm]
 
 	## Write out data to file if desired
-	write_data_to_file = False
+	write_data_to_file = True
 	if write_data_to_file == True:
 		diction = {'direcs':direcs,'data':data,'grid':grid,'indices':indices,'fid_data':fid_data,'fid_params':fid_params,'gridf':gridf}
 		file = open('TS_1_data.pkl','wb')
@@ -298,7 +314,6 @@ if __name__ == "__main__":
 		ax.set_ylabel('log10 Eigenvalue (variance of PS units)',fontsize=16)
 		ax.grid(True)
 		fig.savefig('eigen_dispersion_Nsamp'+str(N_samples)+'.png',dpi=200,bbox_inches='tight')
-
 
 	if plot_eigvecs_project == True:
 		# Plot Eigenprojection Heat-Map Plot

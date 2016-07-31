@@ -1,7 +1,8 @@
 #!/bin/bash
 #SBATCH --partition=regular
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=32
+#SBATCH --ntasks-per-node=16
+#SBATCH --cpus-per-task=2
 #SBATCH --time=3:00:00
 #SBATCH --job-name=21cmFAST
 #SBATCH --output=job_%j.out
@@ -35,7 +36,7 @@ do
 	for j in ${dirs[@]}
 	do
 		echo $j
-		bash $basedir$j/run_21cmFAST.sh>&$basedir$j/jobout.txt &
+		bash $basedir$j/run_21cmFAST.sh >& $basedir$j/jobout.txt &
 	done
 	wait
 	begin=$((begin+length))
