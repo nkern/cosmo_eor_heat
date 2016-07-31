@@ -6,6 +6,7 @@ git add grid_helper.py
 git add global_params.py
 git add drive_21cmFAST.sh
 git add config_multiprog.py
+git add slurm_21cmFAST_singlecore.sh
 
 # Ancillary Files
 git add k_range.tab
