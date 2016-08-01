@@ -59,3 +59,7 @@ rm -vrf ../Boxes/*
 
 # Clean Executables
 make clean
+
+# Exit Program
+echo "...done with drive_21cmFAST"
+exit 0

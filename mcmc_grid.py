@@ -153,39 +153,44 @@ if __name__ == '__main__':
 
 	if send_slurm_jobs == True:
 		# Assign run variables
-		Nruns       	= 550						# Total number of simulations we need to run
+		Nruns       	= 32						# Total number of simulations we need to run
 		Njobs       	= 1							# Number of different SLURM jobs to submit
-		Nnodes      	= 11						# Number of nodes to request per job
-		tasks_per_node	= 25						# Number of tasks to run per node
+		Nnodes      	= 1						# Number of nodes to request per job
+		tasks_per_node	= 32						# Number of tasks to run per node
 		Ntasks      	= tasks_per_node * Nnodes	# Number of individual tasks (processes) to run across all nodes
 		cpus_per_task	= 2							# Number of CPUs to allocate per task (threads)
-		Nseq        	= 2							# Number of sequential simulations to run per task
+		Nseq        	= 1							# Number of sequential simulations to run per task
 		direc_file		= 'cv_direcs.tab'				# File containing directories to be run
 		walltime		= '30:00'					# Amount of walltime for slurm job
 		base_direc		= 'param_space/cross_valid/'
 		mem_per_cpu		= 1500						# Memory in MB per cpu
 		Nstart			= 0
+		partition		= 'debug'
 
 		# Load in slurm file
 		job_file = open('slurm_21cmFAST.sh','r')
 		job_string = np.array(job_file.read().split('\n'))
 		job_file.close()
 
+		job_string[1]	= "#SBATCH --partition="+str(partition)
 		job_string[2]	= "#SBATCH --nodes="+str(Nnodes)
-		job_string[3]	= "#SBATCH --time="+str(walltime)
+		job_string[3]	= "#SBATCH --ntasks="+str(Ntasks)
+		job_string[4]	= "#SBATCH --cpus-per-task="+str(cpus_per_task)
+		job_string[5]	= "#SBATCH --mem-per-cpu="+str(mem_per_cpu)
+		job_string[6]	= "#SBATCH --time="+str(walltime)
 
-		job_string[14]	= 'nodes='+str(Nnodes)
-		job_string[15]	= 'tasks='+str(Ntasks)
-		job_string[16]	= 'cpus='+str(cpus_per_task)
-		job_string[17]	= 'CPUMem='+str(mem_per_cpu)
+		job_string[17]	= 'nodes='+str(Nnodes)
+		job_string[18]	= 'tasks_per_node='+str(Ntasks)
+		job_string[19]	= 'cpus='+str(cpus_per_task)
+		job_string[20]	= 'CPUMem='+str(mem_per_cpu)
 
-		job_string[20]	= "IFS=$'\\r\\n' command eval 'direcs=($(<"+str(direc_file)+"))'"
+		job_string[23]	= "IFS=$'\\r\\n' command eval 'direcs=($(<"+str(direc_file)+"))'"
 
-		job_string[23]	= "begin="+str(Nstart)
-		job_string[24]	= "tot_length="+str(Nruns)
+		job_string[26]	= "begin="+str(Nstart)
+		job_string[27]	= "tot_length="+str(Nruns)
 
-		job_string[28]	= "Nseq="+str(Nseq)
-		job_string[29]	= "begin="+str(Nstart)
+		job_string[31]	= "Nseq="+str(Nseq)
+		job_string[32]	= "begin="+str(Nstart)
 
 		for i in range(Njobs):
 			print ''
@@ -193,7 +198,7 @@ if __name__ == '__main__':
 			print '-'*30
 
 			this_job_string = np.copy(job_string)
-			this_job_string[29] = 'begin='+str(Nstart + i*Ntasks*Nseq)
+			this_job_string[32] = 'begin='+str(Nstart + i*Ntasks*Nseq)
 			file = open('slurm_21cmFAST_auto.sh','w')
 			file.write('\n'.join(this_job_string))
 			file.close()

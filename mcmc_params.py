@@ -6,11 +6,11 @@ import DictEZ
 
 ## Flags
 sample_grid		= False							# Sample training set points
-compile_direcs	= False							# Turn grid data into directory names
+compile_direcs	= True							# Turn grid data into directory names
 write_direcs	= False							# Write directory names to direcs.tab
-build_direcs	= False							# Using samples, write 21cmFAST direcs
+build_direcs	= True							# Using samples, write 21cmFAST direcs
 make_fiducial	= False							# Make fiducial run for Observation
-send_slurm_jobs = True                       # Send jobs to PBS scheduler
+send_slurm_jobs = False                       # Send jobs to PBS scheduler
 
 ## Astro / Cosmo Variables
 sigma8          = 0.8159                        # Fiducial value for Sigma8
