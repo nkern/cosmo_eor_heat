@@ -19,7 +19,7 @@ if sys.argv[1] == 'config':
 	# Write config file
 	f = open('MPMD'+configID+'.conf','w')
 	for i in range(Ndirecs):
-		f.write(str(i)+'\t'+direcs[i]+'/run_21cmFAST.sh\n')
+		f.write(str(i)+'\t'+'bash '+direcs[i]+'/run_21cmFAST.sh\n')
 	f.close()
 
 elif sys.argv[1] == 'jobout':
@@ -31,4 +31,4 @@ elif sys.argv[1] == 'jobout':
 	direcID = map(lambda x: "%02i" % x, range(Ndirecs))
 	# Iterate over direcs
 	for i in range(Ndirecs):
-		os.system('mv '+prefix+direcID[i]+'.out '+direcs[i]+'/')
+		os.system('mv '+prefix+direcID[i]+'.out '+direcs[i]+'/jobout.txt')

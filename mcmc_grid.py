@@ -77,15 +77,15 @@ if __name__ == '__main__':
 		names = grid.names
 		grid = fits_data(grid)
 		gridf = np.array( map(lambda x: grid[x], names) ).T
-		grid = np.array( map(lambda y: map(lambda x: "%07.3f" % x, y), gridf) )
+		grid = np.array( map(lambda y: map(lambda x: "%09.5f" % x, y), gridf) )
 
 		direcs = []
 		zipped = np.array(map(lambda x: zip(np.array(params)[[6,10]],x),grid.T[[6,10]].T))
 		zipped = np.array(map(lambda x: zip(np.array(params),x),grid))
 		j = 0
 		for i in range(len(grid)):
-			direcs.append('_'.join(map(lambda x: '_'.join(x),zipped[i][j][np.newaxis,:])))
 			if i % 50 == 0 and i != 0: j += 1
+			direcs.append('_'.join(map(lambda x: '_'.join(x),zipped[i][j][np.newaxis,:])))
 
 		direcs = np.array(direcs)	
 
@@ -93,7 +93,6 @@ if __name__ == '__main__':
 			f = open('cv_direcs.tab','w')
 			f.write('\n'.join(map(lambda x: base_direc+x,direcs)))
 			f.close()
-
 
 	if build_direcs == True:
 
@@ -154,15 +153,15 @@ if __name__ == '__main__':
 
 	if send_slurm_jobs == True:
 		# Assign run variables
-		Nruns       	= 4000						# Total number of simulations we need to run
+		Nruns       	= 550						# Total number of simulations we need to run
 		Njobs       	= 1							# Number of different SLURM jobs to submit
 		Nnodes      	= 11						# Number of nodes to request per job
-		tasks_per_node	= 15						# Number of tasks to run per node
+		tasks_per_node	= 25						# Number of tasks to run per node
 		Ntasks      	= tasks_per_node * Nnodes	# Number of individual tasks (processes) to run across all nodes
 		cpus_per_task	= 2							# Number of CPUs to allocate per task (threads)
-		Nseq        	= 3							# Number of sequential simulations to run per task
+		Nseq        	= 2							# Number of sequential simulations to run per task
 		direc_file		= 'cv_direcs.tab'				# File containing directories to be run
-		walltime		= '23:00:00'				# Amount of walltime for slurm job
+		walltime		= '30:00'					# Amount of walltime for slurm job
 		base_direc		= 'param_space/cross_valid/'
 		mem_per_cpu		= 1500						# Memory in MB per cpu
 		Nstart			= 0

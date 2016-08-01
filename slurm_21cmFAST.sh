@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --partition=regular
+#SBATCH --partition=debug
 #SBATCH --nodes=1
 #SBATCH --time=30:00
 #SBATCH --job-name=21cmFAST
