@@ -73,19 +73,21 @@ if __name__ == '__main__':
 		fits_table(ts_samples,keys,filename,clobber=True)
 
 	if compile_direcs == True:
-		grid = fits.open('CV_samples.fits')[1].data
+		grid = fits.open('TS_samples1.fits')[1].data
 		names = grid.names
 		grid = fits_data(grid)
 		gridf = np.array( map(lambda x: grid[x], names) ).T
-		grid = np.array( map(lambda y: map(lambda x: "%09.5f" % x, y), gridf) )
+		#grid = np.array( map(lambda y: map(lambda x: "%09.5f" % x, y), gridf) )
+		grid = np.array( map(lambda y: map(lambda x: "%07.3f" % x, y), gridf) )
 
 		direcs = []
 		zipped = np.array(map(lambda x: zip(np.array(params)[[6,10]],x),grid.T[[6,10]].T))
-		zipped = np.array(map(lambda x: zip(np.array(params),x),grid))
+#		zipped = np.array(map(lambda x: zip(np.array(params),x),grid))
 		j = 0
 		for i in range(len(grid)):
-			if i % 50 == 0 and i != 0: j += 1
-			direcs.append('_'.join(map(lambda x: '_'.join(x),zipped[i][j][np.newaxis,:])))
+#			if i % 50 == 0 and i != 0: j += 1
+			direcs.append('_'.join(map(lambda x: '_'.join(x),zipped[i])))
+			#direcs.append('_'.join(map(lambda x: '_'.join(x),zipped[i][j][np.newaxis,:])))
 
 		direcs = np.array(direcs)	
 
@@ -153,19 +155,19 @@ if __name__ == '__main__':
 
 	if send_slurm_jobs == True:
 		# Assign run variables
-		Nruns       	= 32						# Total number of simulations we need to run
-		Njobs       	= 1							# Number of different SLURM jobs to submit
-		Nnodes      	= 1						# Number of nodes to request per job
-		tasks_per_node	= 32						# Number of tasks to run per node
+		Nruns       	= 4000						# Total number of simulations we need to run
+		Njobs       	= 5							# Number of different SLURM jobs to submit
+		Nnodes      	= 25						# Number of nodes to request per job
+		tasks_per_node	= 8						# Number of tasks to run per node
 		Ntasks      	= tasks_per_node * Nnodes	# Number of individual tasks (processes) to run across all nodes
-		cpus_per_task	= 2							# Number of CPUs to allocate per task (threads)
-		Nseq        	= 1							# Number of sequential simulations to run per task
-		direc_file		= 'cv_direcs.tab'				# File containing directories to be run
-		walltime		= '30:00'					# Amount of walltime for slurm job
-		base_direc		= 'param_space/cross_valid/'
-		mem_per_cpu		= 1500						# Memory in MB per cpu
+		cpus_per_task	= 4							# Number of CPUs to allocate per task (threads)
+		Nseq        	= 4							# Number of sequential simulations to run per task
+		direc_file		= 'direcs.tab'			# File containing directories to be run
+		walltime		= '36:00:00'					# Amount of walltime for slurm job
+		base_direc		= 'param_space/gauss_hera127/'
+		mem_per_cpu		= 1000						# Memory in MB per cpu
 		Nstart			= 0
-		partition		= 'debug'
+		partition		= 'regular'
 
 		# Load in slurm file
 		job_file = open('slurm_21cmFAST.sh','r')
@@ -180,7 +182,7 @@ if __name__ == '__main__':
 		job_string[6]	= "#SBATCH --time="+str(walltime)
 
 		job_string[17]	= 'nodes='+str(Nnodes)
-		job_string[18]	= 'tasks_per_node='+str(Ntasks)
+		job_string[18]	= 'tasks_per_node='+str(tasks_per_node)
 		job_string[19]	= 'cpus='+str(cpus_per_task)
 		job_string[20]	= 'CPUMem='+str(mem_per_cpu)
 
@@ -190,7 +192,7 @@ if __name__ == '__main__':
 		job_string[27]	= "tot_length="+str(Nruns)
 
 		job_string[31]	= "Nseq="+str(Nseq)
-		job_string[32]	= "begin="+str(Nstart)
+		job_string[32]	= "begin="+str(0)
 
 		for i in range(Njobs):
 			print ''
@@ -206,21 +208,48 @@ if __name__ == '__main__':
 			os.system('sbatch slurm_21cmFAST_auto.sh')
 
 
-#		Nleftover = Nruns % (Ntasks*Nseq*Njobs)
-#		Nseq = Nruns / (Ntasks*Nseq*Njobs)
-#		if Nleftover != 0 and Nseq > 0:
-#			print ''
-#			print 'running leftover job #'+str(i+1)
-#			print '-'*30
+		Nleftover = Nruns % (Ntasks*Nseq*Njobs)
+		Nnodes = np.ceil(float(Nleftover)/tasks_per_node)
+		#Nnodes = 0
+		if Nnodes == 1:
+			print ''
+			print 'running leftover job #'+str(i+1)
+			print '-'*30
 
-#			this_job_string = np.copy(job_string)
-#			this_job_string[25] = 'Nseq='+str(1)
-#			this_job_string[26] = 'begin='+str(Nstart + (i+1)*Ntasks*Nseq)
-#			this_job_string[27] = 'length='+str(Nleftover)
-#			file = open('slurm_21cmFAST_auto.sh','w')
-#			file.write('\n'.join(this_job_string))
-#			file.close()
+			Nstart          = Nstart + (i+1)*Ntasks*Nseq
+			Nruns			= Nleftover
+			Njobs			= 1
+			tasks_per_node	= Nleftover
+			Nnodes			= 1
+			Ntasks			= Nleftover
+			Nseq			= 1
 
-			#os.system('sbatch slurm_21cmFAST_auto.sh')
+			job_string[1]   = "#SBATCH --partition="+str(partition)
+			job_string[2]   = "#SBATCH --nodes="+str(Nnodes)
+			job_string[3]   = "#SBATCH --ntasks="+str(Ntasks)
+			job_string[4]   = "#SBATCH --cpus-per-task="+str(cpus_per_task)
+			job_string[5]   = "#SBATCH --mem-per-cpu="+str(mem_per_cpu)
+			job_string[6]   = "#SBATCH --time="+str(walltime)
+
+			job_string[17]  = 'nodes='+str(Nnodes)
+			job_string[18]  = 'tasks_per_node='+str(tasks_per_node)
+			job_string[19]  = 'cpus='+str(cpus_per_task)
+			job_string[20]  = 'CPUMem='+str(mem_per_cpu)
+
+			job_string[23]  = "IFS=$'\\r\\n' command eval 'direcs=($(<"+str(direc_file)+"))'"
+
+			job_string[26]  = "begin="+str(Nstart)
+			job_string[27]  = "tot_length="+str(Nruns)
+
+			job_string[31]  = "Nseq="+str(Nseq)
+			job_string[32]  = "begin="+str(0)
+			job_string[33]	= "length="+str(tasks_per_node)
+
+			this_job_string = np.copy(job_string)
+			file = open('slurm_21cmFAST_auto.sh','w')
+			file.write('\n'.join(this_job_string))
+			file.close()
+
+			os.system('sbatch slurm_21cmFAST_auto.sh')
 
 

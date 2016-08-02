@@ -6,11 +6,11 @@ import DictEZ
 
 ## Flags
 sample_grid		= False							# Sample training set points
-compile_direcs	= True							# Turn grid data into directory names
+compile_direcs	= False						# Turn grid data into directory names
 write_direcs	= False							# Write directory names to direcs.tab
-build_direcs	= True							# Using samples, write 21cmFAST direcs
+build_direcs	= False							# Using samples, write 21cmFAST direcs
 make_fiducial	= False							# Make fiducial run for Observation
-send_slurm_jobs = False                       # Send jobs to PBS scheduler
+send_slurm_jobs = True	                      # Send jobs to PBS scheduler
 
 ## Astro / Cosmo Variables
 sigma8          = 0.8159                        # Fiducial value for Sigma8
@@ -39,7 +39,7 @@ boxlen			= 400							# Box Length cMpc
 dim				= 800							# Side dimension of High Res grid
 HIIdim			= 200							# Side dimension of Low Res grid
 computeRmfp		= 0								# Compute Rmfp 1=True, 0=False (i.e. feed it)
-numcores		= 2								# Number of cores per simulation instatiation
+numcores		= 4								# Number of cores per simulation instatiation
 ram				= 4								# Physical Memory in GB available per simulation
 ram_needed		= (dim**3+4*HIIdim**3)*4/1e9	# In GB
 use_Ts			= 1								# Use Ts in calculation
@@ -74,7 +74,7 @@ variables       = ['z_start','z_end','z_step','zlow','zprime','randomseed','boxl
 					'dim','HIIdim','computeRmfp','numcores','ram','use_Ts']         # Other variables to include in parameter files
 variables		= DictEZ.create(variables,globals())
 
-base_direc      = 'param_space/cross_valid/'                        # directory that opens up to 21cmFAST realizations
+base_direc      = 'param_space/gauss_hera127/'                        # directory that opens up to 21cmFAST realizations
 
 sim_root        = '/global/homes/n/nkern/Software/21cmFAST_v1'     # Where Home 21cmFAST directory lives
 direc_root		= '/global/cscratch1/sd/nkern/EoR/cosmo_eor_heat/mcmc'	# Where this directory lives

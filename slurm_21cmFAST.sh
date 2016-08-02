@@ -10,7 +10,7 @@
 #SBATCH --qos=normal
 
 echo "--------------------------------"
-echo "running slurm_21cmFAST3.sh"
+echo "running slurm_21cmFAST.sh"
 echo start: $(date)
 echo ""
 
@@ -70,6 +70,6 @@ do
 	done
 
 echo ""
-echo "done with slurm_21cmFAST3.sh"
+echo "done with slurm_21cmFAST.sh"
 echo end: $(date)
 echo "--------------------------------"
