@@ -73,7 +73,7 @@ if __name__ == '__main__':
 		fits_table(ts_samples,keys,filename,clobber=True)
 
 	if compile_direcs == True:
-		grid = fits.open('TS_samples1.fits')[1].data
+		grid = fits.open('TS_samples2.fits')[1].data
 		names = grid.names
 		grid = fits_data(grid)
 		gridf = np.array( map(lambda x: grid[x], names) ).T
@@ -92,7 +92,7 @@ if __name__ == '__main__':
 		direcs = np.array(direcs)	
 
 		if write_direcs == True:	
-			f = open('cv_direcs.tab','w')
+			f = open('direcs.tab','w')
 			f.write('\n'.join(map(lambda x: base_direc+x,direcs)))
 			f.close()
 
@@ -155,19 +155,20 @@ if __name__ == '__main__':
 
 	if send_slurm_jobs == True:
 		# Assign run variables
-		Nruns       	= 4000						# Total number of simulations we need to run
-		Njobs       	= 5							# Number of different SLURM jobs to submit
-		Nnodes      	= 25						# Number of nodes to request per job
-		tasks_per_node	= 8						# Number of tasks to run per node
+		Nruns       	= 16						# Total number of simulations we need to run
+		Njobs       	= 1							# Number of different SLURM jobs to submit
+		Nnodes      	= 1						# Number of nodes to request per job
+		tasks_per_node	= 4						# Number of tasks to run per node
 		Ntasks      	= tasks_per_node * Nnodes	# Number of individual tasks (processes) to run across all nodes
-		cpus_per_task	= 4							# Number of CPUs to allocate per task (threads)
+		cpus_per_task	= 8							# Number of CPUs to allocate per task (threads)
 		Nseq        	= 4							# Number of sequential simulations to run per task
-		direc_file		= 'direcs.tab'			# File containing directories to be run
-		walltime		= '36:00:00'					# Amount of walltime for slurm job
-		base_direc		= 'param_space/gauss_hera127/'
-		mem_per_cpu		= 1000						# Memory in MB per cpu
+		direc_file		= 'cv_direcs.tab'			# File containing directories to be run
+		walltime		= '30:00'					# Amount of walltime for slurm job
+		base_direc		= 'param_space/cross_valid/'
+		mem_per_cpu		= 500						# Memory in MB per cpu
 		Nstart			= 0
-		partition		= 'regular'
+		partition		= 'debug'
+		job_name		= '21cmSmall'
 
 		# Load in slurm file
 		job_file = open('slurm_21cmFAST.sh','r')
@@ -180,6 +181,7 @@ if __name__ == '__main__':
 		job_string[4]	= "#SBATCH --cpus-per-task="+str(cpus_per_task)
 		job_string[5]	= "#SBATCH --mem-per-cpu="+str(mem_per_cpu)
 		job_string[6]	= "#SBATCH --time="+str(walltime)
+		job_string[7]	= "#SBATCH --job-name="+str(job_name)
 
 		job_string[17]	= 'nodes='+str(Nnodes)
 		job_string[18]	= 'tasks_per_node='+str(tasks_per_node)
