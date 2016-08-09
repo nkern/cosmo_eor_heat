@@ -155,20 +155,20 @@ if __name__ == '__main__':
 
 	if send_slurm_jobs == True:
 		# Assign run variables
-		Nruns       	= 16						# Total number of simulations we need to run
-		Njobs       	= 1							# Number of different SLURM jobs to submit
+		Nruns       	= 220						# Total number of simulations we need to run
+		Njobs       	= 5							# Number of different SLURM jobs to submit
 		Nnodes      	= 1						# Number of nodes to request per job
 		tasks_per_node	= 4						# Number of tasks to run per node
 		Ntasks      	= tasks_per_node * Nnodes	# Number of individual tasks (processes) to run across all nodes
 		cpus_per_task	= 8							# Number of CPUs to allocate per task (threads)
 		Nseq        	= 4							# Number of sequential simulations to run per task
-		direc_file		= 'cv_direcs.tab'			# File containing directories to be run
-		walltime		= '30:00'					# Amount of walltime for slurm job
-		base_direc		= 'param_space/cross_valid/'
+		direc_file		= 'direcs.tab'			# File containing directories to be run
+		walltime		= '20:00:00'					# Amount of walltime for slurm job
+		base_direc		= 'param_space/gauss_hera127/'
 		mem_per_cpu		= 500						# Memory in MB per cpu
-		Nstart			= 0
-		partition		= 'debug'
-		job_name		= '21cmSmall'
+		Nstart			= 120
+		partition		= 'regular'
+		job_name		= 'Small'
 
 		# Load in slurm file
 		job_file = open('slurm_21cmFAST.sh','r')
