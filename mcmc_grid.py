@@ -25,18 +25,21 @@ import astropy.io.fits as fits
 import scipy.stats as stats
 from fits_table import fits_table,fits_data,fits_append
 from round_to_n import round_to_n
+import pyDOE
 
 if __name__ == '__main__':
 
 	if sample_grid == True:
-		sample_gauss = True
+		sampler = 'lhs'
 
 		# Load Sample Bound Information
-		par, parbound = np.loadtxt('sample_HERA127_limits.tab',dtype='str',unpack=True)
-		parbound = np.array(parbound,float)/2.0
+		#par, parbound = np.loadtxt('sample_HERA331_limits.tab',dtype='str',unpack=True)
+		par, parbound = np.loadtxt('sample_paramsearch_limits.tab',dtype='str',unpack=True)
+		parbound = np.array(parbound,float)
+		#parbound /= 2.0
 
 		# Draw random samples
-		if sample_gauss == True:
+		if sampler == 'gauss':
 			# Multivariate Gaussian
 			cov = np.eye(len(par))*parbound**2
 			samples = np.round(stats.multivariate_normal.rvs(mean=params_fid,cov=cov,size=N_samples),7)
@@ -50,7 +53,18 @@ if __name__ == '__main__':
 				else:
 					break
 
-		else:
+		elif sampler == 'lhsfs':
+			while True:
+				samples = pyDOE.lhs(11,samples=N_samples*10,criterion='maximin') - np.array([0.5 for i in range(11)])
+				R = np.sqrt(np.array(map(np.sum,samples**2)))
+				within = R < 0.5
+				if len(np.where(within==True)[0]) >= N_samples: break
+			samples = samples[within]
+			samples = samples[np.random.choice(np.arange(len(samples)),N_samples,replace=False)]
+			samples *= 2*parbound
+			samples += params_fid
+
+		elif sampler == 'uniform':
 			# Sample uniformly from space
 			p1_lim = [0.60,1.10]
 			p2_lim = [1000,80000]
@@ -62,8 +76,13 @@ if __name__ == '__main__':
 				samples.append( np.round(stats.uniform.rvs(loc=param_lims[i][0],scale=param_lims[i][1]-param_lims[i][0],size=N_samples),6) )
 			samples = np.array(samples)[::-1]
 
+		elif sampler == 'lhs':
+			samples = pyDOE.lhs(len(params),samples=N_samples,criterion='maximin') - np.array([0.5 for i in range(len(params))])
+			samples *= 2*parbound
+			samples += params_fid
+
 		# Write out samples to new fits file
-		filename = 'TS_samples2.fits'
+		filename = 'TS_samples5.fits'
 		ts_samples = {}
 		N = len(params)
 		keys = params
@@ -73,7 +92,7 @@ if __name__ == '__main__':
 		fits_table(ts_samples,keys,filename,clobber=True)
 
 	if compile_direcs == True:
-		grid = fits.open('TS_samples2.fits')[1].data
+		grid = fits.open('TS_samples5.fits')[1].data
 		names = grid.names
 		grid = fits_data(grid)
 		gridf = np.array( map(lambda x: grid[x], names) ).T
@@ -109,6 +128,7 @@ if __name__ == '__main__':
 		N = len(grid)
 		M = len(params)
 		for i in np.arange(0,N):
+			if i < 3955: continue
 			print ''
 			print 'working on sample #:',i
 			print 'directory name: '+direcs[i]
@@ -155,103 +175,67 @@ if __name__ == '__main__':
 
 	if send_slurm_jobs == True:
 		# Assign run variables
-		Nruns       	= 220						# Total number of simulations we need to run
-		Njobs       	= 5							# Number of different SLURM jobs to submit
-		Nnodes      	= 1						# Number of nodes to request per job
-		tasks_per_node	= 4						# Number of tasks to run per node
-		Ntasks      	= tasks_per_node * Nnodes	# Number of individual tasks (processes) to run across all nodes
-		cpus_per_task	= 8							# Number of CPUs to allocate per task (threads)
-		Nseq        	= 4							# Number of sequential simulations to run per task
-		direc_file		= 'direcs.tab'			# File containing directories to be run
-		walltime		= '20:00:00'					# Amount of walltime for slurm job
-		base_direc		= 'param_space/gauss_hera127/'
-		mem_per_cpu		= 500						# Memory in MB per cpu
-		Nstart			= 120
-		partition		= 'regular'
-		job_name		= 'Small'
+		Nruns       	= 10000								# Total number of simulations we need to run
+		Njobs       	= 178								# Number of different SLURM jobs to submit
+		Nnodes      	= 1								# Number of nodes to request per job
+		tasks_per_node	= 8								# Number of tasks to run per node
+		Ntasks      	= tasks_per_node * Nnodes		# Number of individual tasks (processes) to run across all nodes
+		cpus_per_task	= 4								# Number of CPUs to allocate per task (threads)
+		Nseq        	= 7								# Number of sequential simulations to run per task
+		direc_file		= 'direcs.tab'					# File containing directories to be run
+		walltime		= '44:00:00'						# Amount of walltime for slurm job
+		base_dir		= 'param_space/lhs/'	# Base drectory
+		mem_per_cpu		= 500							# Memory in MB per cpu
+		Nstart			= 0								# Start index in directory file
+		partition		= 'regular'						# NERSC Partition to run on 
+		job_name		= 'Small'						# Job name
+		infile			= 'slurm_21cmFAST_old.sh'		# SLURM infile
 
-		# Load in slurm file
-		job_file = open('slurm_21cmFAST.sh','r')
-		job_string = np.array(job_file.read().split('\n'))
-		job_file.close()
+		# Search and Replace
+		def SaR(SaR_dic,infile,outfile):
+			zipped = zip(SaR_dic.keys(),SaR_dic.values())
+			os.system("sed -e '"+' '.join(map(lambda x: 's#'+str(x[0])+'#'+str(x[1])+'#g;',zipped))+"' < "+infile+" > "+outfile)
 
-		job_string[1]	= "#SBATCH --partition="+str(partition)
-		job_string[2]	= "#SBATCH --nodes="+str(Nnodes)
-		job_string[3]	= "#SBATCH --ntasks="+str(Ntasks)
-		job_string[4]	= "#SBATCH --cpus-per-task="+str(cpus_per_task)
-		job_string[5]	= "#SBATCH --mem-per-cpu="+str(mem_per_cpu)
-		job_string[6]	= "#SBATCH --time="+str(walltime)
-		job_string[7]	= "#SBATCH --job-name="+str(job_name)
+		# Create Search and Replace Dictionary
+		search = ['@@Nruns@@','@@Nnodes@@','@@tasks_per_node@@','@@Ntasks@@','@@cpus_per_task@@',\
+					'@@Nseq@@','@@direc_file@@','@@walltime@@','@@mem_per_cpu@@','@@Nstart@@',\
+					'@@partition@@','@@job_name@@','@@base_dir@@']
+		replace = [Nruns,Nnodes,tasks_per_node,Ntasks,cpus_per_task,Nseq,direc_file,walltime,\
+					mem_per_cpu,Nstart,partition,job_name,base_dir]
 
-		job_string[17]	= 'nodes='+str(Nnodes)
-		job_string[18]	= 'tasks_per_node='+str(tasks_per_node)
-		job_string[19]	= 'cpus='+str(cpus_per_task)
-		job_string[20]	= 'CPUMem='+str(mem_per_cpu)
+		SaR_dic = OrderedDict(zip(search,replace))
 
-		job_string[23]	= "IFS=$'\\r\\n' command eval 'direcs=($(<"+str(direc_file)+"))'"
-
-		job_string[26]	= "begin="+str(Nstart)
-		job_string[27]	= "tot_length="+str(Nruns)
-
-		job_string[31]	= "Nseq="+str(Nseq)
-		job_string[32]	= "begin="+str(0)
-
+		# Iterate over job submissions
 		for i in range(Njobs):
 			print ''
 			print 'running job #'+str(i)
 			print '-'*30
 
-			this_job_string = np.copy(job_string)
-			this_job_string[32] = 'begin='+str(Nstart + i*Ntasks*Nseq)
-			file = open('slurm_21cmFAST_auto.sh','w')
-			file.write('\n'.join(this_job_string))
-			file.close()
+			# perform search and replace
+			SaR_dic['@@Nstart@@'] = int(Nstart + i*Ntasks*Nseq)
+			SaR(SaR_dic,infile,'slurm_21cmFAST_auto.sh')
 
+			# Send jobs
 			os.system('sbatch slurm_21cmFAST_auto.sh')
 
-
+		# Leftover job
 		Nleftover = Nruns % (Ntasks*Nseq*Njobs)
-		Nnodes = np.ceil(float(Nleftover)/tasks_per_node)
+		Nseq_leftover = np.ceil(float(Nleftover)/tasks_per_node)
 		#Nnodes = 0
 		if Nnodes == 1:
 			print ''
 			print 'running leftover job #'+str(i+1)
 			print '-'*30
 
-			Nstart          = Nstart + (i+1)*Ntasks*Nseq
-			Nruns			= Nleftover
-			Njobs			= 1
-			tasks_per_node	= Nleftover
-			Nnodes			= 1
-			Ntasks			= Nleftover
-			Nseq			= 1
+			# Search and Replace
+			SaR_dic['@@Nstart@@']			= int(Nstart + (i+1)*Ntasks*Nseq)
+			SaR_dic['@@Nruns@@']			= Nleftover
+			SaR_dic['@@Ntasks@@']			= Nleftover
+			SaR_dic['@@Nnodes@@']			= 1
+			SaR_dic['@@Nseq@@']				= int(Nseq_leftover)
+			SaR(SaR_dic,infile,'slurm_21cmFAST_auto.sh')
 
-			job_string[1]   = "#SBATCH --partition="+str(partition)
-			job_string[2]   = "#SBATCH --nodes="+str(Nnodes)
-			job_string[3]   = "#SBATCH --ntasks="+str(Ntasks)
-			job_string[4]   = "#SBATCH --cpus-per-task="+str(cpus_per_task)
-			job_string[5]   = "#SBATCH --mem-per-cpu="+str(mem_per_cpu)
-			job_string[6]   = "#SBATCH --time="+str(walltime)
-
-			job_string[17]  = 'nodes='+str(Nnodes)
-			job_string[18]  = 'tasks_per_node='+str(tasks_per_node)
-			job_string[19]  = 'cpus='+str(cpus_per_task)
-			job_string[20]  = 'CPUMem='+str(mem_per_cpu)
-
-			job_string[23]  = "IFS=$'\\r\\n' command eval 'direcs=($(<"+str(direc_file)+"))'"
-
-			job_string[26]  = "begin="+str(Nstart)
-			job_string[27]  = "tot_length="+str(Nruns)
-
-			job_string[31]  = "Nseq="+str(Nseq)
-			job_string[32]  = "begin="+str(0)
-			job_string[33]	= "length="+str(tasks_per_node)
-
-			this_job_string = np.copy(job_string)
-			file = open('slurm_21cmFAST_auto.sh','w')
-			file.write('\n'.join(this_job_string))
-			file.close()
-
+			# Send job
 			os.system('sbatch slurm_21cmFAST_auto.sh')
 
 

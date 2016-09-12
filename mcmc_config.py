@@ -39,6 +39,7 @@ warnings.filterwarnings('ignore',category=DeprecationWarning)
 
 ## Flags
 interp_ps				= False
+add_Q					= False
 calc_sense				= False
 plot_scree				= False
 plot_eigvecs_project	= False
@@ -51,14 +52,21 @@ if __name__ == "__main__":
 
 	###############################
 	## Load Training Set samples ##
-	grid	= fits_to_array(fits.open('TS_samples1.fits')[1].data)
-	gridf	= np.array(grid,float)
-	grid	= np.array( map(lambda y: map(lambda x: "%07.3f" % x, y), grid) )
+	grid = fits.open('TS_samples3.fits')[1].data
+	names = grid.names
+	grid = fits_data(grid)
+	gridf = np.array( map(lambda x: grid[x], names) ).T
+	#grid = np.array( map(lambda y: map(lambda x: "%09.5f" % x, y), gridf) )
+	grid = np.array( map(lambda y: map(lambda x: "%07.3f" % x, y), gridf) )
 
 	direcs = []
 	zipped = np.array(map(lambda x: zip(np.array(params)[[6,10]],x),grid.T[[6,10]].T))
+	#zipped = np.array(map(lambda x: zip(np.array(params),x),grid))
+	j = 0
 	for i in range(len(grid)):
+		#if i % 50 == 0 and i != 0: j += 1
 		direcs.append('_'.join(map(lambda x: '_'.join(x),zipped[i])))
+		#direcs.append('_'.join(map(lambda x: '_'.join(x),zipped[i][j][np.newaxis,:])))
 
 	direcs = np.array(direcs)
 
@@ -71,7 +79,7 @@ if __name__ == "__main__":
 	# Get directories that have global_params.tab
 	glob_sel = []
 	for i in range(len(direcs)):
-		if os.path.isfile('param_space/'+direcs[i]+'/global_params.tab'):
+		if os.path.isfile(base_direc+direcs[i]+'/global_params.tab'):
 			glob_sel.append(i)
 	N_samples = len(glob_sel)-1
 	direcs	= direcs[glob_sel]
@@ -99,12 +107,12 @@ if __name__ == "__main__":
 		if new_direcs == True:
 			new_direcs = []
 			for i in range(len(direcs)):
-				if len(fnmatch.filter(os.listdir('param_space/'+direcs[i]+'/Output_files/Deldel_T_power_spec'),'ps_interp*')) == 0:
+				if len(fnmatch.filter(os.listdir(base_direc+direcs[i]+'/Output_files/Deldel_T_power_spec'),'ps_interp*')) == 0:
 					new_direcs.append(direcs[i])
 			direcs = np.array(new_direcs)
 
 		# Use only a single directory?
-		single_direc = True
+		single_direc = False
 		if single_direc == True:
 			direcs = ['fiducial_run']
 
@@ -115,34 +123,47 @@ if __name__ == "__main__":
 			k_data = []
 			ps_data = []
 			z_data = []
-			ps_files = fnmatch.filter(os.listdir('param_space/'+direcs[i]+'/Output_files/Deldel_T_power_spec'),'ps_no_halos*')
+			ps_files = fnmatch.filter(os.listdir(base_direc+direcs[i]+'/Output_files/Deldel_T_power_spec'),'ps_no_halos_z???.??.txt')
 			ps_files = sorted(ps_files)
 			glob_par_file = 'global_params.tab'
 			for j in range(len(ps_files)):
-				kdat,psdat = np.loadtxt('param_space/'+direcs[i]+'/Output_files/Deldel_T_power_spec/'+ps_files[j],usecols=(0,1),unpack=True)
-				zdat = float(ps_files[j][13:19])
-				z_data.append(zdat)
-				k_data.append(kdat)
-				ps_data.append(psdat)
+				try:
+					kdat,psdat = np.loadtxt(base_direc+direcs[i]+'/Output_files/Deldel_T_power_spec/'+ps_files[j],usecols=(0,1),unpack=True)
+					zdat = float(ps_files[j][13:19])
+					z_data.append(zdat)
+					k_data.append(kdat)
+					ps_data.append(psdat)
+				except ValueError:
+					pass
 
 			k_data = np.array(k_data)
 			ps_data = np.array(ps_data)
 			z_data = np.array(z_data)
 
 			# Get global parameter data (nf and Tb)
-			gp_z, gp_nf, gp_Tb = np.loadtxt('param_space/'+direcs[i]+'/global_params.tab',unpack=True)
+			gp_z, gp_nf, gp_Tb = np.loadtxt(base_direc+direcs[i]+'/global_params.tab',unpack=True)
 			gp_data = np.vstack([gp_nf,gp_Tb]).T
+
+			# Get Q data
+			if add_Q == True:
+				Qfile = fnmatch.filter(os.listdir(base_direc+direcs[i]+'/Output_files/Ts_outs'),'global_evolution*')[0] 
+				Qz,Qdata = np.loadtxt(base_direc+direcs[i]+'/Output_files/Ts_outs/'+Qfile,usecols=(0,1),unpack=True)
+				Q_pred = curve_interp(z_array,Qz,Qdata[:,np.newaxis],n=2,degree=1).ravel()
 
 			ps_pred = 10**curve_interp(z_array,z_data,np.log10(ps_data),n=3,degree=2)
 			gp_pred = curve_interp(z_array,gp_z,gp_data,n=3,degree=2)
 
 			# Write to file
-			f1 = open('param_space/'+direcs[i]+'/global_params_interp.tab','w')
-			f1.write('# z, nf, Tb\n')
+			f1 = open(base_direc+direcs[i]+'/global_params_interp.tab','w')
+			if add_Q == True: f1.write('# z, nf, Tb, Q\n')
+			else: f1.write('# z, nf, Tb\n')
 			for j in range(len(z_array)):
-				f1.write(str(z_array[j])+'\t'+str(gp_pred.T[0][j]) + '\t' + str(gp_pred.T[1][j]) + '\n')
+				if add_Q == True:
+					f1.write(str(z_array[j])+'\t'+str(gp_pred.T[0][j]) + '\t' + str(gp_pred.T[1][j]) + '\t' + str(Q_pred[j]) + '\n')
+				else:
+					f1.write(str(z_array[j])+'\t'+str(gp_pred.T[0][j]) + '\t' + str(gp_pred.T[1][j]) + '\n')
 
-				f2 = open('param_space/'+direcs[i]+'/Output_files/Deldel_T_power_spec/ps_interp_z%06.2f.txt'%z_array[j],'w')
+				f2 = open(base_direc+direcs[i]+'/Output_files/Deldel_T_power_spec/ps_interp_z%06.2f.txt'%z_array[j],'w')
 				for k in range(k_data.shape[1]):
 					f2.write(str(k_data[0][k])+'\t'+str(ps_pred[j][k])+'\n')
 				f2.close()
@@ -173,9 +194,14 @@ if __name__ == "__main__":
 	z_select        = np.arange(len(z_array))
 	k_range         = np.loadtxt('k_range.tab')
 	k_select        = np.arange(len(k_range))
-	g_array			= np.array([r'nf',r'Tb'])
-	g_array_tex		= np.array([r'$\chi_{HI}$',r'$T_{b}$'])
-	g_select		= np.arange(len(g_array))
+	if add_Q == True:
+		g_array			= np.array([r'nf',r'Tb',r'Q'])
+		g_array_tex		= np.array([r'$\chi_{HI}$',r'$T_{b}$',r'$Q$'])
+		g_select		= np.arange(len(g_array))
+	else:
+		g_array         = np.array([r'nf',r'Tb'])
+		g_array_tex     = np.array([r'$\chi_{HI}$',r'$T_{b}$'])
+		g_select        = np.arange(len(g_array))
 
 	# Limit to zlimits
 	if zmin != None:
@@ -220,13 +246,18 @@ if __name__ == "__main__":
 	print '...Loading Data\n'+'-'*30
 	data		= []
 	alldata_overwrite = False
+	ll = 0
 	for direc in direcs:
+		ll += 1
 		if os.path.isfile(base_direc+direc+'/ps_interp_alldata.tab') == False or alldata_overwrite == True:
 			# Load PS and global data if file w/ all the info doesn't exist
 			print '...working on direc = '+direc
 			ps_files        = np.array(sorted(fnmatch.filter(os.listdir(base_direc+direc+'/'+ps_direc),ps_keep)))
 			global_file	= base_direc+direc+'/global_params_interp.tab'
-			global_data	= np.loadtxt(global_file,usecols=(1,2),unpack=True).T[::-1][z_select][::-1]
+			if add_Q == True:
+				global_data	= np.loadtxt(global_file,usecols=(1,2,3),unpack=True).T[::-1][z_select][::-1]
+			else:
+				global_data = np.loadtxt(global_file,usecols=(1,2),unpack=True).T[::-1][z_select][::-1]
 			sample_data = []
 			for i in range(len(ps_files)):
 				ps_data	= np.loadtxt(base_direc+direc+'/'+ps_direc+ps_files[i],delimiter='\t',usecols=(1,),unpack=True)[k_select]
@@ -249,13 +280,14 @@ if __name__ == "__main__":
 	############################
 
 	## Get fiducial data, remove from samples, slice out eval_samples ##
-	fid_direc = 'fiducial_run'
-	fid_params = np.loadtxt(base_direc+fid_direc+'/param_vals.tab',usecols=(1,))
-	fid_ind = np.where(direcs==fid_direc)[0][0]
-	fid_data = data[fid_ind]
+	#fid_direc = 'fiducial_run'
+	fid_params = np.loadtxt('param_space/fiducial_run/param_vals.tab',usecols=(1,))
+	fid_data = np.loadtxt('param_space/fiducial_run/ps_interp_alldata.tab',usecols=(2,))
+	#fid_ind = np.where(direcs==fid_direc)[0][0]
+	#fid_data = data[fid_ind]
 	#fid_data = np.array(map(lambda x: np.median(x[np.where((np.isnan(x)!=True)|(x==0))]),data.T))
 	#fid_params = np.array(map(np.median,data.T))
-	fid_rm = direcs!=fid_direc
+	#fid_rm = direcs!=fid_direc
 
 	#data	= data[fid_rm]
 	#grid	= grid[fid_rm]
@@ -266,14 +298,13 @@ if __name__ == "__main__":
 	#direcs	= direcs[fid_rm]
 
 	## Write out data to file if desired
-	write_data_to_file = True
+	write_data_to_file = False
 	if write_data_to_file == True:
 		diction = {'direcs':direcs,'data':data,'grid':grid,'indices':indices,'fid_data':fid_data,'fid_params':fid_params,'gridf':gridf}
 		file = open('TS_1_data.pkl','wb')
 		output = pkl.Pickler(file)
 		output.dump(diction)
 		file.close()
-
 
 	err_map = False
 	if err_map == True:

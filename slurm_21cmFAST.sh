@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --partition=debug
-#SBATCH --nodes=25
-#SBATCH --tasks=8
-#SBATCH --cpus-per-task=4
-#SBATCH --mem-per-cpu=500
-#SBATCH --time=30:00
-#SBATCH --job-name=21cmFAST
+#SBATCH --partition=@@partition@@
+#SBATCH --nodes=@@Nnodes@@
+#SBATCH --tasks=@@Ntasks@@
+#SBATCH --cpus-per-task=@@cpus_per_task@@
+#SBATCH --mem-per-cpu=@@mem_per_cpu@@
+#SBATCH --time=@@walltime@@
+#SBATCH --job-name=@@job_name@@
 #SBATCH --output=job_%j.out
 #SBATCH --qos=normal
 
@@ -15,21 +15,21 @@ echo start: $(date)
 echo ""
 
 # SRUN Info
-nodes=4
-tasks_per_node=2
-cpus=4
-CPUMem=500
+nodes=@@Nnodes@@
+tasks_per_node=@@tasks_per_node@@
+cpus=@@cpus_per_task@@
+CPUMem=@@mem_per_cpu@@
 
 # Get Directories
-IFS=$'\r\n' command eval 'direcs=($(<direcs.tab))'
+IFS=$'\r\n' command eval 'direcs=($(<@@direc_file@@))'
 
 # Slice direcs
-begin=0
-tot_length=8
+begin=@@Nstart@@
+tot_length=@@Nruns@@
 direcs=("${direcs[@]:$begin:$tot_length}")
 
 # Define Loop Variables
-Nseq=1
+Nseq=@@Nseq@@
 begin=0
 length=$tasks_per_node
 
