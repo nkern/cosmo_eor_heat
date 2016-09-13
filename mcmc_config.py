@@ -54,7 +54,8 @@ if __name__ == "__main__":
 	## Load Training Set samples ##
 	grid = fits.open('TS_samples4.fits')[1].data
 	names = grid.names
-	grid = fits_data(grid)
+#	grid2 = fits.open('TS_samples4.fits')[1].data
+	grid = np.hstack([grid])#,grid2])
 	gridf = np.array( map(lambda x: grid[x], names) ).T
 	#grid = np.array( map(lambda y: map(lambda x: "%09.5f" % x, y), gridf) )
 	grid = np.array( map(lambda y: map(lambda x: "%07.3f" % x, y), gridf) )
@@ -99,7 +100,6 @@ if __name__ == "__main__":
 
 	ps_interp_files = sorted(map(lambda x: 'ps_interp_z%06.2f.txt'%x,z_array))
 
-	raise NameError
 	# Interpolate redshift outputs to new redshift array
 	if interp_ps == True:
 
@@ -302,7 +302,7 @@ if __name__ == "__main__":
 	write_data_to_file = False
 	if write_data_to_file == True:
 		diction = {'direcs':direcs,'data':data,'grid':grid,'indices':indices,'fid_data':fid_data,'fid_params':fid_params,'gridf':gridf}
-		file = open('TS_1_data.pkl','wb')
+		file = open('gauss_hera331.pkl','wb')
 		output = pkl.Pickler(file)
 		output.dump(diction)
 		file.close()

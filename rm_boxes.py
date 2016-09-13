@@ -5,9 +5,12 @@ import numpy as np
 import os
 import fnmatch
 
-keep_box = ['Ts_z','xH_nohalos_z','delta_T_v3_no_halos_z','Ts_evolution/Tk_zprime']
+keep_box = ['Ts_z','xH_nohalos_z','delta_T_v3_no_halos_z','Tk_zprime']
 z_arr = np.array(map(lambda x: "%06.2f" % x, np.around(sorted(np.loadtxt('../Output_files/Ts_outs/'+fnmatch.filter(os.listdir('../Output_files/Ts_outs'),'global_evolution*')[0],usecols=(0,))),2)))
+z_arrf = np.array(z_arr,float)
 keep_z = np.array([7.0,8.0,9.0,10.0,10.5,11.0])
+closest_z = np.array(map(lambda x: z_arr[np.where(np.abs(x-z_arrf)==np.abs(x-z_arrf).min())[0][0]],keep_z))
+keep_arr = np.array(map(lambda x: [x+closest_z[i] for i in range(len(closest_z))], keep_box)).ravel()
 
 # Iterate through subdirecs
 for dirpath,dirs,files in os.walk('.'):
@@ -17,13 +20,10 @@ for dirpath,dirs,files in os.walk('.'):
 
 	# Iterate through files
 	for i in range(len(files)):
-		keep_file = sum(map(lambda x: x in files[i], keep_box))
-		if keep_file == 0:
-			os.sytem('rm -r '+files[i])
-
-
-
-
+		keep_file = np.array(map(lambda x: x in files[i],keep_arr))
+		keep_bool = True in keep_file
+		if keep_bool is False:
+			os.system('rm -r '+dirpath+'/'+files[i])
 
 
 
