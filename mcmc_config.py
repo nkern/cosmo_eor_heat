@@ -38,7 +38,7 @@ from pycape.toolbox import workspace
 warnings.filterwarnings('ignore',category=DeprecationWarning)
 
 ## Flags
-interp_ps				= False
+interp_ps				= True
 add_Q					= False
 calc_sense				= False
 plot_scree				= False
@@ -52,7 +52,7 @@ if __name__ == "__main__":
 
 	###############################
 	## Load Training Set samples ##
-	grid = fits.open('TS_samples3.fits')[1].data
+	grid = fits.open('TS_samples4.fits')[1].data
 	names = grid.names
 	grid = fits_data(grid)
 	gridf = np.array( map(lambda x: grid[x], names) ).T
@@ -99,6 +99,7 @@ if __name__ == "__main__":
 
 	ps_interp_files = sorted(map(lambda x: 'ps_interp_z%06.2f.txt'%x,z_array))
 
+	raise NameError
 	# Interpolate redshift outputs to new redshift array
 	if interp_ps == True:
 
