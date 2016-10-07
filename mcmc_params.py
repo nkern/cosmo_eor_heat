@@ -6,11 +6,11 @@ import DictEZ
 
 ## Flags
 sample_grid		= False							# Sample training set points
-compile_direcs	= True						# Turn grid data into directory names
+compile_direcs	= False						# Turn grid data into directory names
 write_direcs	= False							# Write directory names to direcs.tab
-build_direcs	= True							# Using samples, write 21cmFAST direcs
+build_direcs	= False							# Using samples, write 21cmFAST direcs
 make_fiducial	= False							# Make fiducial run for Observation
-send_slurm_jobs = False	                      # Send jobs to PBS scheduler
+send_slurm_jobs = True	                      # Send jobs to PBS scheduler
 
 ## Astro / Cosmo Variables
 sigma8          = 0.8159                        # Fiducial value for Sigma8
@@ -19,13 +19,13 @@ OMbh2			= 0.02230						# Fiducial value for omega b h**2
 OMch2			= 0.11880						# Fiducial value for omega c h**2
 ns				= 0.9667						# Fiducial value for spectral index
 
-Tvir            = 6e4                      		# Fiducial value for Tvir
-zeta            = 51.0                     		# Fiducial value for zeta
-Rmfp            = 20.0                     		# Fiducial value for Rmfp
+Tvir            = 5e4#6e4                      		# Fiducial value for Tvir
+zeta            = 40.0#51.0                     		# Fiducial value for zeta
+Rmfp            = 15.0#20.0                     		# Fiducial value for Rmfp
 
-fX				= 2.1							# Fiducial value for fX
-aX				= 2.0							# Fiducial value for aX
-numin			= 300							# Fiducial value for numin
+fX				= 2.0#2.1							# Fiducial value for fX
+aX				= 1.5#2.0							# Fiducial value for aX
+numin			= 300#300							# Fiducial value for numin
 
 # Simulation Variables
 z_start         = 25.00                         # starting redshift
@@ -74,7 +74,7 @@ variables       = ['z_start','z_end','z_step','zlow','zprime','randomseed','boxl
 					'dim','HIIdim','computeRmfp','numcores','ram','use_Ts']         # Other variables to include in parameter files
 variables		= DictEZ.create(variables,globals())
 
-base_direc      = 'param_space/gauss_hera331/'                        # directory that opens up to 21cmFAST realizations
+base_direc      = 'param_space/gauss_hera127/'                        # directory that opens up to 21cmFAST realizations
 
 sim_root        = '/global/homes/n/nkern/Software/21cmFAST_v1'     # Where Home 21cmFAST directory lives
 direc_root		= '/global/cscratch1/sd/nkern/EoR/cosmo_eor_heat/mcmc'	# Where this directory lives

@@ -38,7 +38,7 @@ from pycape.toolbox import workspace
 warnings.filterwarnings('ignore',category=DeprecationWarning)
 
 ## Flags
-interp_ps				= True
+interp_ps				= False
 add_Q					= False
 calc_sense				= False
 plot_scree				= False
@@ -52,10 +52,10 @@ if __name__ == "__main__":
 
 	###############################
 	## Load Training Set samples ##
-	grid = fits.open('TS_samples4.fits')[1].data
+	grid = fits.open('TS_samples1.fits')[1].data
 	names = grid.names
-#	grid2 = fits.open('TS_samples4.fits')[1].data
-	grid = np.hstack([grid])#,grid2])
+	grid2 = fits.open('TS_samples2.fits')[1].data
+	grid = np.hstack([grid,grid2])
 	gridf = np.array( map(lambda x: grid[x], names) ).T
 	#grid = np.array( map(lambda y: map(lambda x: "%09.5f" % x, y), gridf) )
 	grid = np.array( map(lambda y: map(lambda x: "%07.3f" % x, y), gridf) )
@@ -82,6 +82,7 @@ if __name__ == "__main__":
 	for i in range(len(direcs)):
 		if os.path.isfile(base_direc+direcs[i]+'/global_params.tab'):
 			glob_sel.append(i)
+
 	N_samples = len(glob_sel)-1
 	direcs	= direcs[glob_sel]
 	grid	= grid[glob_sel]
@@ -93,10 +94,10 @@ if __name__ == "__main__":
 	z_array     = np.arange(5.5,27.1,0.5)
 	zbin        = 0.5
 
-	freq_low    = 1.420405 / (z_array+zbin/2.0+1)
-	freq_high   = 1.420405 / (z_array-zbin/2.0+1)
-	freq_cent   = np.round(1.420405 / (z_array+1),4)
-	bandwidth   = np.round(1.420405 / (z_array-zbin/2.0+1) - 1.420405 / (z_array+zbin/2.0+1), 4)
+	freq_low    = 1.4204057517667 / (z_array+zbin/2.0+1)
+	freq_high   = 1.4204057517667 / (z_array-zbin/2.0+1)
+	freq_cent   = np.round(1.4204057517667 / (z_array+1),8)
+	bandwidth   = np.round(1.4204057517667 / (z_array-zbin/2.0+1) - 1.4204057517667 / (z_array+zbin/2.0+1), 4)
 
 	ps_interp_files = sorted(map(lambda x: 'ps_interp_z%06.2f.txt'%x,z_array))
 
@@ -151,8 +152,8 @@ if __name__ == "__main__":
 				Qz,Qdata = np.loadtxt(base_direc+direcs[i]+'/Output_files/Ts_outs/'+Qfile,usecols=(0,1),unpack=True)
 				Q_pred = curve_interp(z_array,Qz,Qdata[:,np.newaxis],n=2,degree=1).ravel()
 
-			ps_pred = 10**curve_interp(z_array,z_data,np.log10(ps_data),n=3,degree=2)
-			gp_pred = curve_interp(z_array,gp_z,gp_data,n=3,degree=2)
+			ps_pred = 10**curve_interp(z_array,z_data,np.log10(ps_data),n=3,degree=2,extrap_n=2,extrap_deg=1)
+			gp_pred = curve_interp(z_array,gp_z,gp_data,n=3,degree=2,extrap_n=2,extrap_deg=1)
 
 			# Write to file
 			f1 = open(base_direc+direcs[i]+'/global_params_interp.tab','w')
@@ -299,10 +300,10 @@ if __name__ == "__main__":
 	#direcs	= direcs[fid_rm]
 
 	## Write out data to file if desired
-	write_data_to_file = False
+	write_data_to_file = True
 	if write_data_to_file == True:
 		diction = {'direcs':direcs,'data':data,'grid':grid,'indices':indices,'fid_data':fid_data,'fid_params':fid_params,'gridf':gridf}
-		file = open('gauss_hera331.pkl','wb')
+		file = open('gauss_hera127_data.pkl','wb')
 		output = pkl.Pickler(file)
 		output.dump(diction)
 		file.close()

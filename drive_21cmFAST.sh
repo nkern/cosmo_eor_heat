@@ -55,7 +55,7 @@ function join { local IFS="$1"; shift; echo "$*"; }
 PATH=$(join : "${path[@]}")
 
 # Remove Boxes data
-rm -vrf ../Boxes/*
+python ../rm_boxes.py
 
 # Clean Executables
 make clean

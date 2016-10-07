@@ -13,7 +13,7 @@ closest_z = np.array(map(lambda x: z_arr[np.where(np.abs(x-z_arrf)==np.abs(x-z_a
 keep_arr = np.array(map(lambda x: [x+closest_z[i] for i in range(len(closest_z))], keep_box)).ravel()
 
 # Iterate through subdirecs
-for dirpath,dirs,files in os.walk('.'):
+for dirpath,dirs,files in os.walk('../Boxes'):
 
 	# Sort files in subdirec
 	files = np.array(sorted(files))
@@ -24,7 +24,3 @@ for dirpath,dirs,files in os.walk('.'):
 		keep_bool = True in keep_file
 		if keep_bool is False:
 			os.system('rm -r '+dirpath+'/'+files[i])
-
-
-
-

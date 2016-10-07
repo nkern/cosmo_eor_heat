@@ -41,13 +41,18 @@ from pycape import common_priors
 import time
 warnings.filterwarnings('ignore',category=DeprecationWarning)
 
-
 try:
 	from IPython import get_ipython
 	ipython = get_ipython()
 except: pass
 
+mp.rcParams['font.family'] = 'sans-serif'
+mp.rcParams['font.sans-serif'] = ['Helvetica']
+mp.rcParams['text.usetex'] = True
+
 ## Flags
+
+
 
 ## Program
 if __name__ == "__main__":
@@ -99,7 +104,7 @@ if __name__ == "__main__":
 
 		# Separate Data
 		tr_len = 2000
-		rando = np.random.choice(np.arange(tr_len),size=0,replace=False)
+		rando = np.random.choice(np.arange(tr_len),size=1000,replace=False)
 		rando = np.array(map(lambda x: x in rando,np.arange(tr_len)))
 
 		data_tr = TS_data['data'][np.argsort(TS_data['indices'])][rando]
@@ -113,8 +118,8 @@ if __name__ == "__main__":
 			TS_data = gauss_hera331_data
 
 			# Separate Data
-			tr_len = 2000
-			rando = np.random.choice(np.arange(tr_len),size=2000,replace=False)
+			tr_len = 3000
+			rando = np.random.choice(np.arange(tr_len),size=2500,replace=False)
 			rando = np.array(map(lambda x: x in rando,np.arange(tr_len)))
 
 			data_tr = np.concatenate([data_tr,TS_data['data'][np.argsort(TS_data['indices'])][rando]])
@@ -123,8 +128,9 @@ if __name__ == "__main__":
 
 		# Choose Cross Validation Set
 		CV_data = cross_valid_data
-		TS_remainder = False
-		use_remainder = False
+		no_rando		= True
+		TS_remainder	= False
+		use_remainder	= False
 
 		# Separate Data
 		if TS_remainder == True:
@@ -160,24 +166,27 @@ if __name__ == "__main__":
 	print_time()
 
 	# Get minimum distance between any two points, assuming they have already been decorrelated and normalized
-	def get_min_R(samples):
+	def get_min_R(samples,Ntest=None):
+		if Ntest is None:
+			Ntest = len(samples)
 		minR = 100.0
 		maxR = 0.01
-		for i in np.arange(len(samples)-1):
-			for j in np.arange(i+1,len(samples)):
+		rando = np.random.choice(np.arange(len(samples)),replace=False,size=Ntest)
+		for i in np.arange(Ntest-1):
+			for j in np.arange(i+1,Ntest):
 				if j == i: continue
 				this_R = la.norm(samples[i]-samples[j])
 				if this_R < minR: minR = 1*this_R
 				if this_R > maxR: maxR = 1*this_R
 		return minR, maxR
 
-	def sphere_minR(samples,cov_samp,fid_grid):
+	def sphere_minR(samples,cov_samp,fid_grid,Ntest=None):
 		X = cov_samp - fid_grid
 		cov = np.cov(X.T)
 		L = la.cholesky(cov)
 		invL = la.inv(L)
 		sph_X = np.dot(invL,samples.T).T
-		minR,maxR = get_min_R(sph_X)
+		minR,maxR = get_min_R(sph_X,Ntest=Ntest)
 		return minR,maxR
 
 	def sphere_getRad(samples,cov_samp,fid_grid):
@@ -193,13 +202,14 @@ if __name__ == "__main__":
 	if optimize_tr == True:
 		print_message('...optimizing ts')
 		print_time()
+		Ntest = 500
 		seed = []
 		minR = []
 		rando_seeds = np.random.choice(np.arange(100000),size=50,replace=False)
 		for i in range(len(rando_seeds)):
 			np.random.seed(rando_seeds[i])
 			draw_data()
-			minr,maxr = sphere_minR(grid_tr,gauss_data['gridf']-fid_params,fid_params)
+			minr,maxr = sphere_minR(grid_tr,gauss_hera331_data['gridf']-fid_params,fid_params,Ntest=Ntest)
 			minR.append(minr)
 			seed.append(rando_seeds[i])
 			if i % 10 == 0: print '\r...'+str(i),
@@ -246,7 +256,7 @@ if __name__ == "__main__":
 		for i in range(6):
 			ax = fig.add_subplot(2,3,i+1)
 			ax.plot(grid_tr.T[j],grid_tr.T[j+1],'k,',alpha=0.75)
-			ax.plot(grid_cv.T[j],grid_cv.T[j+1],'r,')
+			ax.plot(grid_cv.T[j],grid_cv.T[j+1],'r.')
 			ax.set_xlim(lims[j])
 			ax.set_ylim(lims[j+1])
 			ax.set_xlabel(p_latex[j],fontsize=16)
@@ -317,17 +327,20 @@ if __name__ == "__main__":
 	obs_dic = dict(zip(workspace_init.keys(),workspace_init.values()))
 	W.obs_init(obs_dic)
 
-
 	print_message('...initializing mockobs')
 	print_time()
 
-	# Load Mock Observation and Configure
+	###########################################
+	### Load Mock Observation and Configure ###
+	###########################################
+
 	file = open('mockObs_hera331_allz.pkl','rb')
 	mock_data = pkl.Unpickler(file).load()
 	file.close()
-	p_true = params_fid
+	p_true = fid_params
 
-	### Variables for Mock Observation ###
+	# Variables of model data
+	rest_freq		= 1.4204057517667	# GHz
 	z_array         = np.arange(5.5,27.01,0.5)
 	z_select        = np.arange(len(z_array))
 	k_range         = np.loadtxt('k_range.tab')
@@ -371,10 +384,9 @@ if __name__ == "__main__":
 	yz_data = np.array(yz_data)
 	yz_data = yz_data.reshape(z_len,y_len,2)
 
+	# Mock Obs variables
 	freq_cent       = mock_data['freq']           # In GHz
-	z_pick          = np.round(1420.405e6/(freq_cent*1e9) - 1,1)
-	dz              = 0.5
-	bandwidth       = 1420.405e6*1e-9 * (1/(1+z_pick-dz/2)-1/(1+z_pick+dz/2))     # In GHz
+	z_pick          = np.around(rest_freq/(freq_cent) - 1,2)
 	z_num           = len(z_pick)
 	z_lim = np.array(map(lambda x: x in z_pick, z_array))
 	y_pick = k_range
@@ -384,6 +396,7 @@ if __name__ == "__main__":
 		if z_lim[i] == True:
 			model_lim[i*y_len:(i+1)*y_len] = np.copy(y_lim)
 
+	model_lim = np.array([True]*N_data)
 	W.E.model_lim = model_lim
 
 	## Configure Mock Data and Append to Obs class
@@ -396,15 +409,13 @@ if __name__ == "__main__":
 			except: mock_data[n]=list(mock_data[n]);mock_data[n][i]=mock_data[n][i].T[mock_data['valid'][i]].T.ravel()
 			if n == 'sense_PSerrs':
 				# Cut out sense_PSerrs / sense_PSdata > x%
-				err_thresh = 1.0        # 200%
+				err_thresh = 2.0        # 200%
 				small_errs = np.where(mock_data['sense_PSerrs'][i] / mock_data['sense_PSdata'][i] < err_thresh)[0]
 				mock_data['sense_kbins'][i] = mock_data['sense_kbins'][i][small_errs]
 				mock_data['sense_PSdata'][i] = mock_data['sense_PSdata'][i][small_errs]
 				mock_data['sense_PSerrs'][i] = mock_data['sense_PSerrs'][i][small_errs]
 
 	mock_data['sense_kbins'] = np.array( map(lambda x: np.array(x,float),mock_data['sense_kbins']))
-	mock_data['sense_PSdata'] = np.array(np.concatenate(mock_data['sense_PSdata']),float)
-	mock_data['sense_PSerrs'] = np.array(np.concatenate(mock_data['sense_PSerrs']),float)
 
 	# If model data that comes with Mock Data does not conform to Predicted Model Data, interpolate!
 	try:
@@ -417,24 +428,89 @@ if __name__ == "__main__":
 		new_PSdata = curve_interp(k_range, mock_data['kbins'][0], mock_data['PSdata'].T, n=2, degree=1 ).T
 		mock_data['kbins'] = np.array([new_kbins for i in range(z_num)])
 		mock_data['PSdata'] = new_PSdata
-		
-	globals().update(mock_data)
-	sense_kbin_nums = np.array([len(x) for x in sense_kbins])
+
+	model_x		= mock_data['kbins']
+	obs_x		= mock_data['sense_kbins']
+	obs_y		= mock_data['sense_PSdata']
+	obs_y_errs	= mock_data['sense_PSerrs']
+	obs_track	= np.array(map(lambda x: ['ps' for i in range(len(x))], obs_x))
+
+	# Add other information to mock dataset
+	add_xe = True
+	if add_xe == True:
+		model_x		= np.array(map(lambda x: np.concatenate([x[0],[x[1]]]), zip(model_x,z_array)))
+		obs_x		= np.array(map(lambda x: np.concatenate([x[0],[x[1]]]), zip(obs_x,z_array)))
+		obs_y		= np.array(map(lambda x: np.concatenate([x[0],[x[1]]]), zip(obs_y,np.zeros(z_num))))
+		obs_y_errs	= np.array(map(lambda x: np.concatenate([x[0],[x[1]]]), zip(obs_y_errs,np.ones(z_num)*1e6)))
+		obs_track	= np.array(map(lambda x: np.concatenate([x[0],[x[1]]]), zip(obs_track,['xe' for i in range(z_num)])))
+
+	add_Tb = True
+	if add_Tb == True:
+		model_x     = np.array(map(lambda x: np.concatenate([x[0],[x[1]]]), zip(model_x,z_array)))
+		obs_x       = np.array(map(lambda x: np.concatenate([x[0],[x[1]]]), zip(obs_x,z_array)))
+		obs_y       = np.array(map(lambda x: np.concatenate([x[0],[x[1]]]), zip(obs_y,np.zeros(z_num))))
+		obs_y_errs  = np.array(map(lambda x: np.concatenate([x[0],[x[1]]]), zip(obs_y_errs,np.ones(z_num)*1e6)))
+		obs_track   = np.array(map(lambda x: np.concatenate([x[0],[x[1]]]), zip(obs_track,['Tb' for i in range(z_num)])))
+
+	obs_y = np.concatenate(obs_y)
+	obs_y_errs = np.concatenate(obs_y_errs)
+	obs_x_nums = np.array([len(x) for x in obs_x])
+	obs_track = W.obs_mat2row(obs_track)
 
 	# Feed Mock Observation to Workspace
-	update_obs_dic = {'N_data':sense_PSdata.size,'z_num':z_num,'model_lim':model_lim,'z_array':z_array,
-						 'k_range':k_range}
+	update_obs_dic = {'N_data':obs_y.size,'z_num':z_num,'model_lim':model_lim,'z_array':z_array,
+						 'k_range':k_range,'obs_x_nums':obs_x_nums}
 	W.obs_update(update_obs_dic)
-	W.obs_feed(kbins,sense_kbins,sense_PSdata,sense_PSerrs)
+	W.obs_feed(model_x,obs_x,obs_y,obs_y_errs,obs_track)
 	print_time()
 
-	# Interpolate Training Set onto Observational Basis
+	## Interpolate Training Set onto Observational Basis ##
 	print_message('...configuring data for emulation')
 	print_time()
-	data_tr = np.array(map(lambda x: W.obs_interp_mod2obs(x),data_tr))
-	fid_data = W.obs_interp_mod2obs(fid_data)
 
-	data_cv = np.array(map(lambda x: W.obs_interp_mod2obs(x),data_cv))
+	# First interpolate onto observational redshift basis #
+	redshift_interp = False
+	if redshift_interp == True:
+		# select out ps
+		def z_interp(data):
+			ps_select = np.array([[True if i < k_len else False for i in range(y_len)] for j in range(z_len)]).ravel()
+			gp_select = np.array([[False if i < k_len else True for i in range(y_len)] for j in range(z_len)]).ravel()
+			ps_data = np.array(map(lambda x: x[ps_select].reshape(z_len,k_len), data))
+			gp_data = np.array(map(lambda x: x[gp_select].reshape(z_len,g_len), data))
+			ps_pred = np.array([10**curve_interp(z_pick,z_array,np.log10(ps_data[:,:,i].T),n=3,degree=2).T for i in range(k_len)]).T
+			gp_pred = np.array([curve_interp(z_pick,z_array,ps_data[:,:,i].T,n=3,degree=2).T for i in range(g_len)]).T
+			data = [[] for i in range(len(ps_data))]
+			for i in range(ps_pred.shape[0]):
+				for j in range(len(ps_data)):
+					data[j].extend(np.concatenate([ps_pred[i][j],gp_pred[i][j]]))
+			return np.array(data)
+
+		data_tr = z_interp(data_tr)
+		data_cv = z_interp(data_cv)
+		fid_data = z_interp(fid_data[np.newaxis,:]).ravel()
+
+	# Second Interpolate P Spec onto observational k-mode basis #
+	ps_interp = True
+	if ps_interp == True:
+		def ps_interp(data):
+			# select out ps and other data
+			ps_select = np.array([[True if i < k_len else False for i in range(y_len)] for j in range(z_len)]).ravel()
+			ps_data = np.array(map(lambda x: x[ps_select].reshape(z_len,k_len), data))
+			other_data = data.T[~ps_select].T.reshape(len(data),z_len,g_len)
+			ps_track = W.obs_track(['ps'])
+			# interpolate (or make prediction)
+			ps_pred = np.array([curve_interp(ps_track[i],W.Obs.k_range,ps_data[:,i,:].T,n=2,degree=1).T for i in range(z_len)])
+			# reshape array
+			data = [[] for i in range(len(ps_data))]
+			for i in range(z_len):
+				for j in range(len(ps_data)):
+					try: data[j].extend(np.concatenate([ps_pred[i][j],other_data[j][i]]))
+					except: data[j].extend(np.concatenate([np.array([]),other_data[j][i]]))
+			return np.array(data)
+
+		data_tr		= ps_interp(data_tr)
+		data_cv		= ps_interp(data_cv)
+		fid_data	= ps_interp(fid_data[np.newaxis,:]).ravel()
 
 	# Initialize KLT
 	W.E.klt(data_tr,fid_data=fid_data)
@@ -454,7 +530,7 @@ if __name__ == "__main__":
 	print_time()
 	k = 5
 	use_pca = True
-	emode_variance_div = 30.0
+	emode_variance_div = 100.0
 	calc_noise = False
 	norm_noise = False
 	fast = False
@@ -465,14 +541,14 @@ if __name__ == "__main__":
 	NN_hyper = False
 	NN_hyper_k = 30
 
-	sample_noise = 1e-5 * np.linspace(1,100,N_modes).reshape(N_modes,1)
+	sample_noise = 1e-5 * np.linspace(1,10,N_modes).reshape(N_modes,1)
 
 	# Solve for GP Hyperparameters for every grid point
 	#theta0 = np.array([1.0,1.0,1.0])
 	#theta0 = np.array([0.1,0.1,0.1])
 	#theta0 = np.array([0.17058725,  0.0139115,   0.10627892])
 	theta0 = np.array([[0.1 for i in range(N_params)] for i in range(N_modes)]) *\
-						np.linspace(1.0,10.0,N_modes).reshape(N_modes,1)
+						np.linspace(1.0,5.0,N_modes).reshape(N_modes,1)
 	thetaL = theta0/10
 	thetaU = theta0*10
 	thetaL = None
@@ -521,7 +597,7 @@ if __name__ == "__main__":
 	cut_high_fracerr = 10.0
 	emu_err_mc = False
 	ndim = N_params
-	nwalkers = 40
+	nwalkers = 32
 
 	sampler_init_kwargs = {'use_Nmodes':use_Nmodes,'param_bounds':param_bounds,'param_hypervol':param_hypervol,
 							'nwalkers':nwalkers,'ndim':ndim,'N_params':ndim,'z_num':z_num}
@@ -534,13 +610,16 @@ if __name__ == "__main__":
 	W.samp_init(sampler_init_kwargs)
 	print_time()
 
-
 	train_emu = True
 	if train_emu == True:
 		print_message('...training emulator')
 		print_time()
 		W.emu_train(W.E.data_tr,W.E.grid_tr,fid_data=W.E.fid_data,fid_params=W.E.fid_params,kwargs_tr=kwargs_tr)
 		print_time()
+
+	#################
+	### FUNCTIONS ###
+	#################
 
 	def cross_validate():
 		print_message('...cross validating power spectra')
@@ -575,49 +654,15 @@ if __name__ == "__main__":
 		print_time()
 		return recon, recon_err, weights, true_w, weights_err
 
-	cross_validate_ps = True
-	if cross_validate_ps == True:
-		print_message('...cross validating power spectra')
-		print_time()
-
-		recon, recon_err, weights, true_w, weights_err = cross_validate()
-
-		fig = mp.figure(figsize=(16,4))
-
-		# Scree Plot
-		ax = fig.add_subplot(131)
-		ax.plot(W.E.eig_vals,'ko')
-		ax.set_yscale('log')
-		ax.set_xlim(-1,N_modes+1)
-		ax.set_xlabel('eigenmode #',fontsize=15)
-		ax.set_ylabel('eigenvalue',fontsize=15)
-		ax.grid(True)
-
-		# Cross Validation Error
-		#z_arr = np.array(yz_data.reshape(91,2).T[1],float)
-		#good_z = (z_arr > 7) & (z_arr < 25)
-		#W.E.model_lim[~good_z] = False
-
+	def calc_errs(recon,recon_err):
+		# Get cross validated reconstruction error
 		err = (recon-data_cv)/data_cv
 		pred_err = recon_err / data_cv
 		mean_err = np.array(map(lambda x: np.median(x),err.T))
-		central_err = err[np.where(np.abs(err)<0.2)]
+		central_err = err[np.where(np.abs(err)<np.std(err))]
 		std = np.std(central_err)
 		rms_err = np.sqrt(astrostats.biweight_location(err.ravel()**2))
 		rms_std_err = astrostats.biweight_midvariance(err.ravel())
-
-		ax = fig.add_subplot(132)
-		p1 = ax.hist(np.abs(err.ravel()),histtype='step',color='b',linewidth=1,bins=75,range=(-0.01,1.5),normed=True,alpha=0.75)
-		p2 = ax.hist(pred_err.ravel(),histtype='step',color='r',linewidth=1,bins=75,range=(-.01,1.5),normed=True,alpha=0.5)
-		#ax.axvline(rms,color='r',alpha=0.5)
-		#ax.axvline(-rms,color='r',alpha=0.5)
-		#ax.hist(rms_obs_err,histtype='step',color='m',bins=50,range=(0,0.2),alpha=0.5,normed=True)
-		ax.set_xlim(-0.001,1.5)
-		ax.set_ylim(0,2)
-		ax.set_xlabel('Fractional Error',fontsize=15)
-		ax.annotate('rms err = '+str(np.around(rms_err*100,2))+'%\n rms standard error ='+str(np.around(rms_std_err*100,2))+'%',
-			xy=(0.5,0.8),xycoords='axes fraction')
-
 		# Get CV error at each redshift
 		recon_mat = np.array(map(lambda x: W.obs_mat2row(x,mat2row=False), recon))
 		cv_mat    = np.array(map(lambda x: W.obs_mat2row(x,mat2row=False), data_cv))
@@ -631,19 +676,147 @@ if __name__ == "__main__":
 		zarr_vec = W.obs_mat2row(np.array([[z_array[i]]*len(W.Obs.x[i]) for i in range(z_num)]),mat2row=True)
 		frac_err_vec = W.obs_mat2row(frac_err_mat,mat2row=True)
 
-		ax = fig.add_subplot(133)
+		names = ['err','pred_err','frac_err','frac_err_vec','zarr_vec','rms_err','rms_std_err']
+		globals().update(dez.create(names,locals()))
+
+	def plot_cross_valid(fname='cross_validate_ps.png'):
+		fig = mp.figure(figsize=(16,12))
+
+		# Scree Plot
+		ax = fig.add_subplot(331)
+		ax.plot(W.E.eig_vals,'ko')
+		ax.set_yscale('log')
+		ax.set_xlim(-1,N_modes+1)
+		ax.set_xlabel(r'eigenmode #',fontsize=15)
+		ax.set_ylabel(r'eigenvalue',fontsize=15)
+		ax.grid(True)
+
+		# Cross Validation Error
+		#z_arr = np.array(yz_data.reshape(91,2).T[1],float)
+		#good_z = (z_arr > 7) & (z_arr < 25)
+		#W.E.model_lim[~good_z] = False
+
+		ax = fig.add_subplot(332)
+		try:
+			p1 = ax.hist(np.abs(err.ravel()),histtype='step',color='b',linewidth=1,bins=75,range=(-0.01,1.5),normed=True,alpha=0.75)
+			p2 = ax.hist(pred_err.ravel(),histtype='step',color='r',linewidth=1,bins=75,range=(-.01,1.5),normed=True,alpha=0.5)
+		except UnboundLocalError:
+			print 'UnboundLocalError on err or pred_err'
+		#ax.axvline(rms,color='r',alpha=0.5)
+		#ax.axvline(-rms,color='r',alpha=0.5)
+		#ax.hist(rms_obs_err,histtype='step',color='m',bins=50,range=(0,0.2),alpha=0.5,normed=True)
+		ax.set_xlim(-0.001,1.5)
+		ax.set_ylim(0,2)
+		ax.set_xlabel(r'Fractional Error',fontsize=15)
+		ax.annotate(r'rms err = '+str(np.around(rms_err*100,2))+'%\n rms standard error ='+str(np.around(rms_std_err*100,2))+'%',
+			xy=(0.2,0.8),xycoords='axes fraction')
+
+		ax = fig.add_subplot(333)
 		im = ax.scatter(W.Obs.x_ext,zarr_vec,c=frac_err_vec*100,marker='o',s=35,edgecolor='',alpha=0.75,cmap='nipy_spectral_r',vmax=10)
 		ax.set_xscale('log')
 		ax.set_xlim(1e-1,3)
 		ax.set_xlabel(r'$k$',fontsize=17)
 		ax.set_ylabel(r'$z$',fontsize=17)
-		fig.colorbar(im,label='Avg % Error')
-		fig.savefig('cross_validate_ps.png',dpi=100,bbox_inches='tight')
+		fig.colorbar(im,label=r'Avg % Error')
+
+		for i in range(6):
+			ax = fig.add_subplot(3,3,i+4)
+			# Get Eigenvector and kz data
+			eig_vec = W.E.eig_vecs[i]
+
+			# yz_eigvector plot
+			cmap = mp.cm.get_cmap('coolwarm',41)
+			im = ax.scatter(W.Obs.x_ext,zarr_vec,c=eig_vec,marker='o',s=35,edgecolors='',alpha=0.9,cmap=cmap,vmin=-0.5,vmax=0.5)
+			ax.set_xlabel(r'$k$ (Mpc$^{-1}$)',fontsize=12)
+			ax.set_xscale('log')
+			ax.set_xlim(1e-1,3)
+			ax.set_ylabel(r'$z$',fontsize=12)
+			fig.colorbar(im)
+
+		fig.savefig(fname,dpi=200,bbox_inches='tight')
 		mp.close()
 		print_time()
 
+	#####################
+	### END FUNCTIONS ###
+	#####################
+
+	raise NameError
+	plot_eigenmodes = True
+	if plot_eigenmodes == True:
+		# Plot first few eigenmodes and scree plot
+		gs = gridspec.GridSpec(3,2)
+		fig = mp.figure(figsize=(9,12))
+		fig.subplots_adjust(wspace=0.3,hspace=0.3)
+		ax1 = fig.add_subplot(gs[0,:])
+		ax2 = fig.add_subplot(gs[1,0])
+		ax3 = fig.add_subplot(gs[1,1])
+		ax4 = fig.add_subplot(gs[2,0])
+		ax5 = fig.add_subplot(gs[2,1])
+
+		# Make Scree Plot
+		ax1.grid(True,which='major')
+		ax1.set_yscale('log')
+		ax1.scatter(np.arange(3,len(W.E.eig_vals))+1,W.E.eig_vals[3:],facecolor='k',s=40,marker='o',edgecolor='',alpha=0.75)
+		ax1.scatter([1],W.E.eig_vals[0],facecolor='b',marker='o',s=40,edgecolor='',alpha=0.75)
+		ax1.scatter([2],W.E.eig_vals[1],facecolor='g',marker='o',s=40,edgecolor='',alpha=0.75)
+		ax1.scatter([3],W.E.eig_vals[2],facecolor='r',marker='o',s=40,edgecolor='',alpha=0.75)
+		ax1.set_xlim(0,50)
+		ax1.set_xlabel(r'Eigenmode \#',fontsize=16)
+		ax1.set_ylabel(r'Eigenvalue',fontsize=16)
+		ax1.annotate(r'HERA Forecast Training Set',fontsize=14,xy=(0.6,0.75),xycoords='axes fraction')
+
+		# Plot power spectra at 3 redshifts
+		z1,z2,z3 = 5, 13, 19
+		ax2.grid(True)
+		ax2.set_xscale('log')
+		ax2.set_yscale('log')
+		p0, = ax2.plot(W.Obs.x[z1],W.obs_mat2row(W.E.fid_data,mat2row=False)[z1],linestyle='-',linewidth=2,color='k',alpha=0.75)
+		p1, = ax2.plot(W.Obs.x[z2],W.obs_mat2row(W.E.fid_data,mat2row=False)[z2],linestyle='--',linewidth=2,color='k',alpha=0.75)
+		p2, = ax2.plot(W.Obs.x[z3],W.obs_mat2row(W.E.fid_data,mat2row=False)[z3],linestyle=':',linewidth=2,color='k',alpha=0.75)
+		ax2.legend([p0,p1,p2],[r'$z=8.0$',r'$z=12.0$',r'$z=15.0$'],loc=2)
+		ax2.set_xlim(1e-1,2)
+		ax2.set_ylim(8,2e4)
+		ax2.set_xlabel(r'$k$ ($h$ Mpc$^{-1}$)',fontsize=15)
+		ax2.set_ylabel(r'$\Delta^{2}$',fontsize=15)
+
+		# Plot Eigenmodes
+		ax4.grid(True)
+		ax4.set_xscale('log')
+		#ax4.set_yscale('log')
+		p3, = ax4.plot(W.Obs.x[z1],W.obs_mat2row(W.E.eig_vecs[0],mat2row=False)[z1]+1,linestyle='-',color='b',linewidth=1.5,alpha=0.5)
+		p4, = ax4.plot(W.Obs.x[z1],W.obs_mat2row(W.E.eig_vecs[1],mat2row=False)[z1]+1,linestyle='-',color='g',linewidth=1.5,alpha=0.5)
+		p5, = ax4.plot(W.Obs.x[z1],W.obs_mat2row(W.E.eig_vecs[2],mat2row=False)[z1]+1,linestyle='-',color='r',linewidth=1.5,alpha=0.5)
+		p5, = ax4.plot(W.Obs.x[z2],W.obs_mat2row(W.E.eig_vecs[0],mat2row=False)[z2]+1,linestyle='--',color='b',linewidth=1.5,alpha=0.5)
+		p6, = ax4.plot(W.Obs.x[z2],W.obs_mat2row(W.E.eig_vecs[1],mat2row=False)[z2]+1,linestyle='--',color='g',linewidth=1.5,alpha=0.5)
+		p7, = ax4.plot(W.Obs.x[z2],W.obs_mat2row(W.E.eig_vecs[2],mat2row=False)[z2]+1,linestyle='--',color='r',linewidth=1.5,alpha=0.5)
+		p8, = ax4.plot(W.Obs.x[z3],W.obs_mat2row(W.E.eig_vecs[0],mat2row=False)[z3]+1,linestyle=':',color='b',linewidth=1.5,alpha=0.5)
+		p9, = ax4.plot(W.Obs.x[z3],W.obs_mat2row(W.E.eig_vecs[1],mat2row=False)[z3]+1,linestyle=':',color='g',linewidth=1.5,alpha=0.5)
+		p10, = ax4.plot(W.Obs.x[z3],W.obs_mat2row(W.E.eig_vecs[2],mat2row=False)[z3]+1,linestyle=':',color='r',linewidth=1.5,alpha=0.5)
+		ax4.set_xlabel(r'$k$ ($h$ Mpc$^{-1}$)',fontsize=15)
+		ax4.set_ylabel(r'$\Delta^{2} - \langle\Delta^{2}\rangle + 1$',fontsize=15)
+		ax4.set_xlim(1e-1,2)
+		ax4.set_ylim(8e-1,1.5)
+
+		# Plot Neutral Fraction and Brightness Temperature
+		ax3b = ax3.twinx()
+		p11, = ax3.plot(z_array,fiducial_data['data'][~W.E.model_lim][::2],color='rosybrown',linewidth=2,alpha=0.75)
+		p12, = ax3b.plot(z_array,fiducial_data['data'][~W.E.model_lim][1:][::2],color='forestgreen',linewidth=2,alpha=0.75)
+		ax3.legend([p11,p12],[r'$\langle x_{HI}\rangle$',r'$\langle\delta T_{b}\rangle$'],loc=1)
+		ax3.set_xlabel(r'$z$',fontsize=16)
+		ax3.set_ylabel(r'$\langle x_{HI}\rangle$',fontsize=16)
+		ax3b.set_ylabel(r'$\langle\delta T_{b}\rangle$ (mK)',fontsize=16)
+		ax3.set_xlim(6,25)
+		ax3.set_ylim(0,1)
+		ax3b.set_ylim(-200,100)
+
+		# Plot Eigenmodes
+		p13, = ax5.plot(z_array)
+
+		fig.savefig('data_compress.png',dpi=200,bbox_inches='tight')
+		mp.close()
+
 	cross_validate_like = True
-	add_lnlike_weight = True
 	if cross_validate_like == True:
 		print_message('...cross validating likelihoods')
 		print_time()
@@ -652,31 +825,44 @@ if __name__ == "__main__":
 		fig = mp.figure(figsize=(5,5))
 		ax = fig.add_subplot(111)
 		frac_err = (e_like-t_like)/t_like
-		patches = ax.hist(frac_err,bins=20,histtype='step',range=(-2.0,2.0),normed=True,color='b')
+		try: patches = ax.hist(frac_err,bins=20,histtype='step',range=(-2.0,2.0),normed=True,color='b')
+		except UnboundLocalError: pass
 		ax.set_xlim(-2.0,2.0)
 		ax.set_xlabel('likelihood fractional error',fontsize=14)
-		ax.annotate('robust err std = '+str(np.around(astrostats.biweight_midvariance(frac_err)*100,2))+'%',xy=(0.5,0.8),xycoords='axes fraction')
+		ax.annotate('robust err std = '+str(np.around(astrostats.biweight_midvariance(frac_err)*100,2))+'%',xy=(0.2,0.8),xycoords='axes fraction')
 		fig.savefig('cross_validate_like.png',dpi=100,bbox_inches='tight')
+		print_time()
 
-		if add_lnlike_weight == True:
-			print_message('...adding lnlike cross validated errors to lnlike covariance as weights')
-			print_time()
+	cross_validate_ps = True
+	add_lnlike_err = True
+	if cross_validate_ps == True:
+		recon, recon_err, weights, true_w, weights_err = cross_validate()
+		calc_errs(recon,recon_err)
+		plot_cross_valid(fname='cross_validate_ps.png')
+
+		if add_lnlike_err == True:
+			print_message('...adding lnlike cross validated errors to lnlike covariance as weights',type=0)
+
 			## Add emulator error to lnlikelihood weight vector
 			rel_weight_vec = (frac_err_vec/np.min(frac_err_vec))
-			weight_constant = 0.5
+			weight_constant = 1.0
+			print_message('...weight constant = '+str(weight_constant),type=0)
 			add_lnlike_cov = W.S.data_cov * np.eye(W.Obs.cov.shape[0])*(frac_err_vec*rel_weight_vec*weight_constant)**2
 			lnprob_kwargs['add_lnlike_cov'] = add_lnlike_cov
 
+			print_message('...redoing lnlike cross validation with new covariance weights')
+			print_time()
 			e_like,t_like,o_vars = W.samp_cross_valid(grid_cv,data_cv,lnlike_kwargs=lnprob_kwargs,also_record=['lnlike_emu_err'])
 			fig = mp.figure(figsize=(5,5))
 			ax = fig.add_subplot(111)
 			frac_err = (e_like-t_like)/t_like
-			patches = ax.hist(frac_err,bins=20,histtype='step',range=(-2.0,2.0),normed=True,color='r')
+			try: patches = ax.hist(frac_err,bins=20,histtype='step',range=(-2.0,2.0),normed=True,color='r')
+			except UnboundLocalError: pass
 			ax.set_xlim(-2.0,2.0)
 			ax.set_xlabel('likelihood fractional error',fontsize=14)
-			ax.annotate('robust err std = '+str(np.around(astrostats.biweight_midvariance(frac_err)*100,2))+'%',xy=(0.5,0.8),xycoords='axes fraction')
+			ax.annotate('robust err std = '+str(np.around(astrostats.biweight_midvariance(frac_err)*100,2))+'%',xy=(0.2,0.8),xycoords='axes fraction')
 			fig.savefig('cross_validate_like2.png',dpi=100,bbox_inches='tight')
-		print_time()
+			print_time()
 
 	regress_for_hyperparams = False
 	if regress_for_hyperparams == True:
@@ -779,77 +965,145 @@ if __name__ == "__main__":
 		cax = fig.add_axes([0.92, 0.05, 0.03, 0.9])
 		cb1 = matplotlib.colorbar.ColorbarBase(cax,cmap=cmap,norm=norm,orientation='vertical')
 		cb1.set_ticks(np.arange(len(chisq)))
-		cb1.set_label('Eigenmode #',fontsize=13)
+		cb1.set_label(r'Eigenmode #',fontsize=13)
 		fig.savefig('GPhyperparams.png',dpi=100,bbox_inches='tight')
 		mp.close()
 		print_time()
 
-	cross_validate_ps = False
-	if cross_validate_ps == True:
-		print_message('...cross validating power spectra')
-		print_time()
+		cross_validate_ps = False
+		if cross_validate_ps == True:
+			recon, recon_err, weights, true_w, weights_err = cross_validate()
+			calc_errs(recon,recon_err)
+			plot_cross_valid(fname='cross_validate_ps.png')
 
-		recon, recon_err, weights, true_w, weights_err = cross_validate()
+	# Plot Eigenmode Weight Prediction
+	plot_weight_pred = True
+	if plot_weight_pred == True:
+		plot_modes = [0]
+		plot_params = [0,1,2,3,4,5,6,7,8,9,10]
 
-		fig = mp.figure(figsize=(16,4))
+		gs = gridspec.GridSpec(4,4)
+		gs1 = gs[:3,:]
+		gs2 = gs[3,:]
 
-		# Scree Plot
-		ax = fig.add_subplot(131)
-		ax.plot(W.E.eig_vals,'ko')
-		ax.set_yscale('log')
-		ax.set_xlim(-1,N_modes+1)
-		ax.set_xlabel('eigenmode #',fontsize=15)
-		ax.set_ylabel('eigenvalue',fontsize=15)
-		ax.grid(True)
+		for p in plot_params:
+			for plot_mode in plot_modes:
+				# Plot regression of weights
+				fig=mp.figure(figsize=(10,10))
+				fig.subplots_adjust(hspace=0.1)
 
-		# Cross Validation Error
-		#z_arr = np.array(yz_data.reshape(91,2).T[1],float)
-		#good_z = (z_arr > 7) & (z_arr < 25)
-		#W.E.model_lim[~good_z] = False
+				sel = np.array(reduce(operator.mul,np.array([grid_cv.T[i]==params_fid[i] if i != p else np.ones(len(grid_cv.T[i])) for i in range(N_params)])),bool)
+				sort = np.argsort(grid_cv.T[p][sel])
+				grid_x = grid_cv.T[p][sel][sort]
+				pred_weight = weights.T[plot_mode][sel][sort]
+				true_weight = true_w.T[plot_mode][sel][sort]
+				pred_weight_err = weights_err.T[plot_mode][sel][sort]
 
-		err = (recon-data_cv)/data_cv
-		pred_err = recon_err / data_cv
-		mean_err = np.array(map(lambda x: np.median(x),err.T))
-		central_err = err[np.where(np.abs(err)<0.2)]
-		std = np.std(central_err)
-		rms_err = np.sqrt(astrostats.biweight_location(err.ravel()**2))
-		rms_std_err = astrostats.biweight_midvariance(err.ravel())
+				ax1 = fig.add_subplot(gs1)
+				ax1.grid(True)
+				a0 = ax1.fill_between(grid_x,pred_weight+pred_weight_err,pred_weight-pred_weight_err,color='b',alpha=0.2)
+				a1, = ax1.plot(grid_x,true_weight,'r.',markersize=14,alpha=0.3)
+				a2, = ax1.plot(grid_x,pred_weight,'k',linewidth=2.5)
+				ax1.set_ylabel(r'eigenmode weight',fontsize=15)
+				ax1.legend([a1,a2],[r'True Weights',r'Prediction'])
+				ylim = None,None
+				ax1.set_ylim(ylim)
+				ax1.tick_params(axis='x',which='both',bottom='off',labelbottom='off')
+				ax1.set_title(r'Prediction of Eigenmode '+str(plot_mode),fontsize=15)
 
-		ax = fig.add_subplot(132)
-		p1 = ax.hist(np.abs(err.ravel()),histtype='step',color='b',linewidth=1,bins=75,range=(-0.01,1.5),normed=True,alpha=0.75)
-		p2 = ax.hist(pred_err.ravel(),histtype='step',color='r',linewidth=1,bins=75,range=(-.01,1.5),normed=True,alpha=0.5)
-		#ax.axvline(rms,color='r',alpha=0.5)
-		#ax.axvline(-rms,color='r',alpha=0.5)
-		#ax.hist(rms_obs_err,histtype='step',color='m',bins=50,range=(0,0.2),alpha=0.5,normed=True)
-		ax.set_xlim(-0.001,1.5)
-		ax.set_ylim(0,2)
-		ax.set_xlabel('Fractional Error',fontsize=15)
-		ax.annotate('rms err = '+str(np.around(rms_err*100,2))+'%\n rms standard error ='+str(np.around(rms_std_err*100,2))+'%',
-			xy=(0.5,0.8),xycoords='axes fraction')
+				ax2 = fig.add_subplot(gs2)
+				ax2.grid(True)
+				ax2.axhline(0,color='r',linewidth=1,alpha=0.75,linestyle='--')
+				a0 = ax2.fill_between(grid_x,pred_weight+pred_weight_err-true_weight,pred_weight-pred_weight_err-true_weight,color='b',alpha=0.2)
+				a2, = ax2.plot(grid_x,pred_weight-true_weight,'k',linewidth=2.5)
+				[l.set_rotation(30) for l in ax2.get_xticklabels()]
+				ylim = None,None
+				ax2.set_xlabel(p_latex[p],fontsize=20)
+				ax2.set_ylabel(r'$\hat{\mathbf{w}}-\mathbf{w}$',fontsize=18)
 
-		# Get CV error at each redshift
-		recon_mat = np.array(map(lambda x: W.obs_mat2row(x,mat2row=False), recon))
-		cv_mat    = np.array(map(lambda x: W.obs_mat2row(x,mat2row=False), data_cv))
-		frac_err = (recon_mat-cv_mat)/cv_mat
-		frac_err_mat = []
-		for i in range(z_num):
-			avg_err_kbins = np.array(map(lambda x: np.sqrt(np.median(x**2)),np.array([frac_err.T[i][j] for j in range(len(data_cv))]).T))
-			frac_err_mat.append(avg_err_kbins)
-		frac_err_mat = np.array(frac_err_mat)
+				fig.savefig('weight_pred_'+params[p]+'_eig'+str(plot_mode)+'.png',dpi=200,bbox_inches='tight')
+				mp.close()
 
-		zarr_vec = W.obs_mat2row(np.array([[z_array[i]]*len(W.Obs.x[i]) for i in range(z_num)]),mat2row=True)
-		frac_err_vec = W.obs_mat2row(frac_err_mat,mat2row=True)
+	# Plot PS Prediction
+	plot_ps_pred = True
+	if plot_ps_pred == True:
+		plot_kbins = [99]
+		plot_params = [0,1,2,3,4,5,6,7,8,9,10]
 
-		ax = fig.add_subplot(133)
-		im = ax.scatter(W.Obs.x_ext,zarr_vec,c=frac_err_vec*100,marker='o',s=35,edgecolor='',alpha=0.75,cmap='nipy_spectral_r',vmax=10)
-		ax.set_xscale('log')
-		ax.set_xlim(1e-1,3)
-		ax.set_xlabel(r'$k$',fontsize=17)
-		ax.set_ylabel(r'$z$',fontsize=17)
-		fig.colorbar(im,label='Avg % Error')
-		fig.savefig('cross_validate_ps2.png',dpi=100,bbox_inches='tight')
-		mp.close()
-		print_time()
+		gs = gridspec.GridSpec(4,4)
+		gs1 = gs[:3,:]
+		gs2 = gs[3,:]
+
+		for p in plot_params:
+			for kbin in plot_kbins:
+				# Plot regression of weights
+				fig=mp.figure(figsize=(10,10))
+				fig.subplots_adjust(hspace=0.1)
+
+				sel = np.array(reduce(operator.mul,np.array([grid_cv.T[i]==params_fid[i] if i != p else np.ones(len(grid_cv.T[i])) for i in range(N_params)])),bool)
+				sort = np.argsort(grid_cv.T[p][sel])
+				grid_x = grid_cv.T[p][sel][sort]
+				pred_ps = recon.T[kbin][sel][sort]
+				true_ps = data_cv.T[kbin][sel][sort]
+				pred_ps_err = recon_err.T[kbin][sel][sort]
+				yz = W.obs_mat2row(yz_data,Nfeatures=2)[kbin]
+
+				ax1 = fig.add_subplot(gs1)
+				ax1.grid(True)
+				a0 = ax1.fill_between(grid_x,pred_ps+pred_ps_err,pred_ps-pred_ps_err,color='b',alpha=0.2)
+				a1, = ax1.plot(grid_x,true_ps,'r.',markersize=14,alpha=0.3)
+				a2, = ax1.plot(grid_x,pred_ps,'k',linewidth=2.5)
+				ax1.set_ylabel(r'$\Delta^{2}$',fontsize=18)
+				ax1.legend([a1,a2],[r'True PS',r'Prediction'])
+				ylim = None,None
+				ax1.set_ylim(ylim)
+				ax1.tick_params(axis='x',which='both',bottom='off',labelbottom='off')
+				ax1.annotate(r'$k = '+str(np.round(float(yz[0])/0.7,2))+'\ h\ Mpc^{-1}$\n$z = '+yz[1]+'$',xy=(0.05,0.85),xycoords='axes fraction',fontsize=17)
+
+				ax2 = fig.add_subplot(gs2)
+				ax2.grid(True)
+				ax2.axhline(1,color='r',linewidth=1,alpha=0.75,linestyle='--')
+				a0 = ax2.fill_between(grid_x,(pred_ps+pred_ps_err)/true_ps,(pred_ps-pred_ps_err)/true_ps,color='b',alpha=0.2)
+				a2, = ax2.plot(grid_x,pred_ps/true_ps,'k',linewidth=2.5)
+				[l.set_rotation(30) for l in ax2.get_xticklabels()]
+				ylim = None,None
+				ax2.set_xlabel(p_latex[p],fontsize=20)
+				ax2.set_ylabel(r'$\hat{\Delta^{2}}/\Delta^{2}$',fontsize=18)
+
+				fig.savefig('ps_pred_'+params[p]+'_kbin'+str(kbin)+'.png',dpi=200,bbox_inches='tight')
+				mp.close()
+
+	# Plot PS Reconstruction
+	plot_ps_recon = True
+	if plot_ps_recon == True:
+
+		# Pick redshifts
+		z_arr = [3]
+
+		# Calcualte error
+		ps_frac_err = recon / data_cv
+
+		# Iterate through redshifts
+		for z in z_arr:
+			# Plot
+			fig = mp.figure(figsize=(8,8))
+			ax = fig.add_subplot(111)
+			ax.grid(True,which='both')
+
+			# Iterate through cv
+			for i in range(len(grid_cv)):
+				ax.plot(W.Obs.x[z],W.obs_mat2row(recon[i],mat2row=False)[z]/W.obs_mat2row(data_cv[i],mat2row=False)[z],color='b',alpha=0.2)
+
+			ax.annotate(r'$z='+str(z_array[z])+'$',xy=(0.1,0.8),xycoords='axes fraction',fontsize=18)
+
+			ax.set_xlim(1.1e-1,1.5)
+			ax.set_ylim(0.8,1.2)
+			ax.set_xscale('log')
+			ax.set_xlabel(r'$k\ (h\ Mpc^{-1})$',fontsize=18)
+			ax.set_ylabel(r'$\hat{\Delta^{2}}/\Delta^{2}$',fontsize=18)
+
+			fig.savefig('ps_recon_z'+str(z_array[z])+'.png',dpi=200,bbox_inches='tight')
+			mp.close()
 
 	# Initialize Ensemble Sampler
 	print_message('...initializing ensemble sampler')
@@ -897,20 +1151,20 @@ if __name__ == "__main__":
 		print_message('...timing sampler')
 		ipython.magic("timeit -r 3 W.samp_drive(pos,step_num=1,burn_num=0)")
 
-	drive_sampler = True
+	drive_sampler = False
 	if drive_sampler == True:
 		print_message('...driving sampler',type=1)
 		print_time()
 		# Drive Sampler
-		burn_num = 100
-		step_num = 500
+		burn_num = 200
+		step_num = 600
 		print_message('...driving with burn_num='+str(burn_num)+', step_num='+str(step_num),type=0)
 		W.samp_drive(pos,step_num=step_num,burn_num=burn_num)
 		samples = W.S.sampler.chain[:, 0:, :].reshape((-1, W.S.ndim))
 		print("Mean acceptance fraction: {0:.3f}".format(np.mean(W.S.sampler.acceptance_fraction)))
 		print_time()
 
-	trace_plots = True
+	trace_plots = False
 	if trace_plots == True:
 		print_message('...plotting trace plots')
 		print_time()
@@ -929,7 +1183,7 @@ if __name__ == "__main__":
 		mp.close()
 		print_time()
 
-	tri_plots = True
+	tri_plots = False
 	if tri_plots == True:
 		print_message('...plotting triangle plots')
 		print_time()
@@ -938,7 +1192,7 @@ if __name__ == "__main__":
 
 		p_eps = [0.1 for i in range(5)] + [0.2 for i in range(6)]
 		p_lims = [[None,None] for i in range(N_params)]
-		p_lims = [[params_fid[i]*(1-p_eps[i]),params_fid[i]*(1+p_eps[i])] for i in range(N_params)]
+		p_lims = [[fid_params[i]*(1-p_eps[i]),fid_params[i]*(1+p_eps[i])] for i in range(N_params)]
 
 		label_kwargs = {'fontsize':18}
 
@@ -962,12 +1216,6 @@ if __name__ == "__main__":
 		fig.savefig('tri_plot.png',dpi=100,bbox_inches='tight')
 		mp.close()
 		print_time()
-
-
-
-
-
-
 
 
 

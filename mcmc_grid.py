@@ -128,7 +128,6 @@ if __name__ == '__main__':
 		N = len(grid)
 		M = len(params)
 		for i in np.arange(0,N):
-			if i < 3955: continue
 			print ''
 			print 'working on sample #:',i
 			print 'directory name: '+direcs[i]
@@ -157,6 +156,7 @@ if __name__ == '__main__':
 			os.system('cp -r '+sim_root+'/External_tables '+working_direc+'/')
 			os.system('cp mcmc_params.py '+working_direc+'/')
 			os.system('cp global_params.py '+working_direc+'/')
+			os.system('cp rm_boxes.py '+working_direc+'/')
 
 			# Insert parameters
 			insert_params(vars_21cmFAST,working_direc)
@@ -175,18 +175,18 @@ if __name__ == '__main__':
 
 	if send_slurm_jobs == True:
 		# Assign run variables
-		Nruns       	= 10000								# Total number of simulations we need to run
-		Njobs       	= 178								# Number of different SLURM jobs to submit
+		Nruns       	= 2000								# Total number of simulations we need to run
+		Njobs       	= 66								# Number of different SLURM jobs to submit
 		Nnodes      	= 1								# Number of nodes to request per job
-		tasks_per_node	= 8								# Number of tasks to run per node
+		tasks_per_node	= 6								# Number of tasks to run per node
 		Ntasks      	= tasks_per_node * Nnodes		# Number of individual tasks (processes) to run across all nodes
 		cpus_per_task	= 4								# Number of CPUs to allocate per task (threads)
-		Nseq        	= 7								# Number of sequential simulations to run per task
+		Nseq        	= 5								# Number of sequential simulations to run per task
 		direc_file		= 'direcs.tab'					# File containing directories to be run
-		walltime		= '44:00:00'						# Amount of walltime for slurm job
+		walltime		= '30:00:00'						# Amount of walltime for slurm job
 		base_dir		= 'param_space/lhs/'	# Base drectory
 		mem_per_cpu		= 500							# Memory in MB per cpu
-		Nstart			= 0								# Start index in directory file
+		Nstart			= 4000								# Start index in directory file
 		partition		= 'regular'						# NERSC Partition to run on 
 		job_name		= 'Small'						# Job name
 		infile			= 'slurm_21cmFAST_old.sh'		# SLURM infile
@@ -222,7 +222,7 @@ if __name__ == '__main__':
 		Nleftover = Nruns % (Ntasks*Nseq*Njobs)
 		Nseq_leftover = np.ceil(float(Nleftover)/tasks_per_node)
 		#Nnodes = 0
-		if Nnodes == 1:
+		if Nnodes == 1 and Nleftover > 0:
 			print ''
 			print 'running leftover job #'+str(i+1)
 			print '-'*30
