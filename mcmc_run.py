@@ -611,7 +611,7 @@ if __name__ == "__main__":
 	cut_high_fracerr = 10.0
 	emu_err_mc = False
 	ndim = N_params
-	nwalkers = 50
+	nwalkers = 22
 
 	sampler_init_kwargs = {'use_Nmodes':use_Nmodes,'param_bounds':param_bounds,'param_hypervol':param_hypervol,
 							'nwalkers':nwalkers,'ndim':ndim,'N_params':ndim,'z_num':z_num}
@@ -1082,6 +1082,7 @@ if __name__ == "__main__":
 
 	print_time()
 
+	raise NameError
 	time_sampler = False
 	if time_sampler == True:
 		print_message('...timing sampler')
@@ -1093,8 +1094,8 @@ if __name__ == "__main__":
 		print_message('...driving sampler',type=1)
 		print_time()
 		# Drive Sampler
-		burn_num = 100
-		step_num = 300
+		burn_num = 150
+		step_num = 450
 		print_message('...driving with burn_num='+str(burn_num)+', step_num='+str(step_num),type=0)
 		W.samp_drive(pos,step_num=step_num,burn_num=burn_num)
 		samples = W.S.sampler.chain[:, 0:, :].reshape((-1, W.S.ndim))
@@ -1107,7 +1108,6 @@ if __name__ == "__main__":
 			f.close()
 
 		print_time()
-
 
 	load_chains = False
 	if load_chains == True:
