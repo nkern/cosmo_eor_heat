@@ -127,7 +127,7 @@ if __name__ == "__main__":
 			direcs_tr = np.concatenate([direcs_tr,TS_data['direcs'][np.argsort(TS_data['indices'])][rando]])
 
 		# Choose Cross Validation Set
-		CV_data 		= gauu_hera331_data
+		CV_data 		= gauss_hera331_data
 		no_rando		= False
 		TS_remainder	= True
 		use_remainder	= True
@@ -525,7 +525,7 @@ if __name__ == "__main__":
 	print_message('...configuring emulator and sampler')
 	print_time()
 	k = 5
-	use_pca = False
+	use_pca = True
 	emode_variance_div = 10.0
 	calc_noise = False
 	norm_noise = False
@@ -611,7 +611,7 @@ if __name__ == "__main__":
 	cut_high_fracerr = 10.0
 	emu_err_mc = False
 	ndim = N_params
-	nwalkers = 32
+	nwalkers = 50
 
 	sampler_init_kwargs = {'use_Nmodes':use_Nmodes,'param_bounds':param_bounds,'param_hypervol':param_hypervol,
 							'nwalkers':nwalkers,'ndim':ndim,'N_params':ndim,'z_num':z_num}
@@ -1052,21 +1052,22 @@ if __name__ == "__main__":
 	add_priors = True
 	if add_priors == True:
 		print_message('...adding non-flat priors',type=0)
-		planck_cov = np.loadtxt('base_TTTEEE_lowl_plik.covmat')[[0,1,5]].T[[0,1,5]].T
+		#planck_cov = np.loadtxt('base_TTTEEE_lowl_plik.covmat')[[0,1,5]].T[[0,1,5]].T
+		select_arr = np.array([5,6,0,1,4])
+		planck_cov = np.loadtxt('new_planck_cov.tab')[select_arr[:,None],select_arr]
 		std_multiplier = 1.0
 
 		# Add non-correlated Gaussian Priors
-		prior_params = ['sigma8','H0']
+		prior_params = []
 		prior_indices = [0,1]
 		priors = map(lambda x: common_priors.cmb_priors1[x+'_err'] * std_multiplier, prior_params)
-		priors[1] /= 100.
 		for i in range(len(priors)):
 			W.S.lnprior_funcs[prior_indices[i]] = W.samp_gauss_lnprior(p_true[prior_indices[i]],priors[i],\
 						index=prior_indices[i],return_func=True)
 			
 		# Add correlated Gaussian Priors
-		prior_params = ['ombh2','omch2','ns']
-		prior_indices = [2,3,4]
+		prior_params = ['sigma8','hlittle','ombh2','omch2','ns']
+		prior_indices = [0,1,2,3,4]
 		Nindices = len(prior_indices)
 		prior_cov = np.zeros((N_params,N_params))
 		for i in range(Nindices):
@@ -1086,20 +1087,37 @@ if __name__ == "__main__":
 		print_message('...timing sampler')
 		ipython.magic("timeit -r 3 W.samp_drive(pos,step_num=1,burn_num=0)")
 
-	drive_sampler = False
+	drive_sampler = True
+	save_chains = True
 	if drive_sampler == True:
 		print_message('...driving sampler',type=1)
 		print_time()
 		# Drive Sampler
-		burn_num = 200
-		step_num = 600
+		burn_num = 100
+		step_num = 300
 		print_message('...driving with burn_num='+str(burn_num)+', step_num='+str(step_num),type=0)
 		W.samp_drive(pos,step_num=step_num,burn_num=burn_num)
 		samples = W.S.sampler.chain[:, 0:, :].reshape((-1, W.S.ndim))
 		print("Mean acceptance fraction: {0:.3f}".format(np.mean(W.S.sampler.acceptance_fraction)))
+
+		if save_chains == True:
+			f = open('samp_chains.pkl','wb')
+			output = pkl.Pickler(f)
+			output.dump({'samples':samples,'burn_num':burn_num,'step_num':step_num,'acceptance_frac':np.mean(W.S.sampler.acceptance_fraction)})
+			f.close()
+
 		print_time()
 
-	trace_plots = False
+
+	load_chains = False
+	if load_chains == True:
+		f = open('samp_chains.pkl','rb')
+		input = pkl.Unpickler(f)
+		chain_d = input.load()
+		f.close()
+		samples = chain_d['samples']
+
+	trace_plots = True
 	if trace_plots == True:
 		print_message('...plotting trace plots')
 		print_time()
@@ -1118,7 +1136,7 @@ if __name__ == "__main__":
 		mp.close()
 		print_time()
 
-	tri_plots = False
+	tri_plots = True
 	if tri_plots == True:
 		print_message('...plotting triangle plots')
 		print_time()
