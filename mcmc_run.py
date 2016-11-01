@@ -40,6 +40,8 @@ import warnings
 from pycape.toolbox import workspace
 from pycape import common_priors
 import time
+from mpi4py import MPI
+import emcee
 warnings.filterwarnings('ignore',category=DeprecationWarning)
 
 try:
@@ -615,7 +617,6 @@ if __name__ == "__main__":
 
 	sampler_init_kwargs = {'use_Nmodes':use_Nmodes,'param_bounds':param_bounds,'param_hypervol':param_hypervol,
 							'nwalkers':nwalkers,'ndim':ndim,'N_params':ndim,'z_num':z_num}
-	sampler_kwargs = {}
 
 	lnprob_kwargs = {'add_model_err':add_model_err,'fast':fast,'kwargs_tr':kwargs_tr,
 					 'calc_lnlike_emu_err':calc_lnlike_emu_err,'predict_kwargs':predict_kwargs,'LAYG':LAYG,'k':k,
@@ -858,7 +859,7 @@ if __name__ == "__main__":
 		mp.close()
 
 
-	cross_validate_ps = True
+	cross_validate_ps = False
 	calibrate_error = True
 	add_lnlike_cov = True
 	if cross_validate_ps == True:
@@ -1043,8 +1044,18 @@ if __name__ == "__main__":
 	# Initialize Ensemble Sampler
 	print_message('...initializing ensemble sampler')
 	print_time()
+
+	sampler_kwargs = {}
+	# Check for MPI
+	comm = MPI.COMM_WORLD
+	size = comm.Get_size()
+	if size > 1:
+		pool = emcee.utils.MPIPool()
+		sampler_kwargs.update({'pool':pool})
+
 	W.samp_emcee_init(lnprob_kwargs=lnprob_kwargs,sampler_kwargs=sampler_kwargs)
 
+	raise NameError
 	# Initialize Walker positions
 	pos = np.array(map(lambda x: x + x*stats.norm.rvs(0,0.05,nwalkers),p_true)).T
 
