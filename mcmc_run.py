@@ -32,7 +32,8 @@ import operator
 from klip import klfuncs
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.cluster import KMeans
-import astropy.stats as astrostats
+from sklearn import gaussian_process as gp
+import astropy.stats as astats
 import scipy.stats as stats
 import corner
 import warnings
@@ -51,7 +52,6 @@ mp.rcParams['font.sans-serif'] = ['Helvetica']
 mp.rcParams['text.usetex'] = True
 
 ## Flags
-
 
 
 ## Program
@@ -104,7 +104,7 @@ if __name__ == "__main__":
 
 		# Separate Data
 		tr_len = 2000
-		rando = np.random.choice(np.arange(tr_len),size=1000,replace=False)
+		rando = np.random.choice(np.arange(tr_len),size=2000,replace=False)
 		rando = np.array(map(lambda x: x in rando,np.arange(tr_len)))
 
 		data_tr = TS_data['data'][np.argsort(TS_data['indices'])][rando]
@@ -127,10 +127,10 @@ if __name__ == "__main__":
 			direcs_tr = np.concatenate([direcs_tr,TS_data['direcs'][np.argsort(TS_data['indices'])][rando]])
 
 		# Choose Cross Validation Set
-		CV_data = cross_valid_data
-		no_rando		= True
-		TS_remainder	= False
-		use_remainder	= False
+		CV_data 		= gauu_hera331_data
+		no_rando		= False
+		TS_remainder	= True
+		use_remainder	= True
 
 		# Separate Data
 		if TS_remainder == True:
@@ -151,13 +151,13 @@ if __name__ == "__main__":
 		direcs_cv = np.array(CV_data['direcs'])[np.argsort(CV_data['indices'])][rando]
 		
 		# Get Fiducial Data
-		feed_fid = True
+		feed_fid = False
 		if feed_fid == True:
 			fid_params = fiducial_data['gridf']
 			fid_data = fiducial_data['data']
 		else:
-			fid_params = np.array(map(np.median,grid_tr.T))
-			fid_data = np.array(map(np.median,data_tr.T))
+			fid_params = np.array(map(astats.biweight_location,grid_tr.T))
+			fid_data = np.array(map(astats.biweight_location,data_tr.T))
 			
 		globals().update(dez.create(make_globals,locals()))
 
@@ -269,24 +269,6 @@ if __name__ == "__main__":
 		mp.close()
 		print_time()
 
-	def insert(dict_arr,name,value,scalar=False):
-		arr_len = len(dict_arr)
-		if type(value) == float or type(value) == int or type(value) == bool or value is None:
-			for i in range(arr_len):
-				dict_arr[i][name] = value
-		elif type(value) is np.ndarray:
-			if value.ndim == 1:
-				for i in range(arr_len):
-					dict_arr[i][name] = value
-			elif value.ndim == 2:
-				if value.shape[1] > 1:
-					for i in range(arr_len):
-						dict_arr[i][name] = value[i]
-				else:
-					for i in range(arr_len):
-						dict_arr[i][name] = value[i][0]
-	
-
 	### Variables for Emulator ###
 	N_modes = 50
 	N_params = len(params)
@@ -294,15 +276,16 @@ if __name__ == "__main__":
 	N_samples = len(data_tr)
 	poly_deg = 2
 	reg_meth='gaussian'
-	theta0 = np.array([0.1 for i in range(N_params)])
-	thetaU = None#theta0*10.
-	thetaL = None#theta0/10.
+	ell = np.array([10 for i in range(N_params)])
+	recon_err_norm = 1.0
+	kernel = gp.kernels.RBF(ell)
+	scale_by_std = True
 
-	gp_kwargs = {'regr':'linear','theta0':theta0,'thetaL':thetaL,'thetaU':thetaU,
-					'random_start':1,'verbose':False,'corr':'squared_exponential'}
+	gp_kwargs = {'kernel':kernel}
 
 	variables.update({'params':params,'N_params':N_params,'N_modes':N_modes,'N_samples':N_samples,'N_data':N_data,
-						'reg_meth':reg_meth,'poly_deg':poly_deg,'gp_kwargs':gp_kwargs})
+						'reg_meth':reg_meth,'poly_deg':poly_deg,'gp_kwargs':gp_kwargs,'scale_by_std':scale_by_std,
+						'recon_err_norm':recon_err_norm})
 
 	workspace_init = {'dir_pycape':'/global/homes/n/nkern/Software/pycape',
 					  'dir_21cmSense':'/global/homes/n/nkern/Software/21cmSense'}
@@ -409,7 +392,7 @@ if __name__ == "__main__":
 			except: mock_data[n]=list(mock_data[n]);mock_data[n][i]=mock_data[n][i].T[mock_data['valid'][i]].T.ravel()
 			if n == 'sense_PSerrs':
 				# Cut out sense_PSerrs / sense_PSdata > x%
-				err_thresh = 2.0        # 200%
+				err_thresh = 0.75        # 200%
 				small_errs = np.where(mock_data['sense_PSerrs'][i] / mock_data['sense_PSdata'][i] < err_thresh)[0]
 				mock_data['sense_kbins'][i] = mock_data['sense_kbins'][i][small_errs]
 				mock_data['sense_PSdata'][i] = mock_data['sense_PSdata'][i][small_errs]
@@ -434,6 +417,7 @@ if __name__ == "__main__":
 	obs_y		= mock_data['sense_PSdata']
 	obs_y_errs	= mock_data['sense_PSerrs']
 	obs_track	= np.array(map(lambda x: ['ps' for i in range(len(x))], obs_x))
+	track_types = ['ps']
 
 	# Add other information to mock dataset
 	add_xe = True
@@ -443,6 +427,7 @@ if __name__ == "__main__":
 		obs_y		= np.array(map(lambda x: np.concatenate([x[0],[x[1]]]), zip(obs_y,np.zeros(z_num))))
 		obs_y_errs	= np.array(map(lambda x: np.concatenate([x[0],[x[1]]]), zip(obs_y_errs,np.ones(z_num)*1e6)))
 		obs_track	= np.array(map(lambda x: np.concatenate([x[0],[x[1]]]), zip(obs_track,['xe' for i in range(z_num)])))
+		track_types += ['xe']
 
 	add_Tb = True
 	if add_Tb == True:
@@ -451,17 +436,21 @@ if __name__ == "__main__":
 		obs_y       = np.array(map(lambda x: np.concatenate([x[0],[x[1]]]), zip(obs_y,np.zeros(z_num))))
 		obs_y_errs  = np.array(map(lambda x: np.concatenate([x[0],[x[1]]]), zip(obs_y_errs,np.ones(z_num)*1e6)))
 		obs_track   = np.array(map(lambda x: np.concatenate([x[0],[x[1]]]), zip(obs_track,['Tb' for i in range(z_num)])))
+		track_types += ['Tb']
 
 	obs_y = np.concatenate(obs_y)
 	obs_y_errs = np.concatenate(obs_y_errs)
 	obs_x_nums = np.array([len(x) for x in obs_x])
-	obs_track = W.obs_mat2row(obs_track)
+	obs_track = W.obs_mat2row(obs_track,mat2row=True)
+	track_types = np.array(track_types)
 
 	# Feed Mock Observation to Workspace
-	update_obs_dic = {'N_data':obs_y.size,'z_num':z_num,'model_lim':model_lim,'z_array':z_array,
+	update_obs_dic = {'N_data':obs_y.size,'z_num':z_num,'z_array':z_array,
 						 'k_range':k_range,'obs_x_nums':obs_x_nums}
 	W.obs_update(update_obs_dic)
-	W.obs_feed(model_x,obs_x,obs_y,obs_y_errs,obs_track)
+	W.obs_feed(model_x,obs_x,obs_y,obs_y_errs,obs_track,track_types)
+	_,model_lim = W.obs_track(['ps','xe','Tb'],return_bool=True,mat=False)
+	W.Obs.model_lim = model_lim
 	print_time()
 
 	## Interpolate Training Set onto Observational Basis ##
@@ -512,6 +501,13 @@ if __name__ == "__main__":
 		data_cv		= ps_interp(data_cv)
 		fid_data	= ps_interp(fid_data[np.newaxis,:]).ravel()
 
+	# Transform data to likelihood?
+	trans_lnlike = False
+	if trans_lnlike == True:
+		data_tr = np.array(map(lambda x: W.samp_gaussian_lnlike(x,W.Obs.y,W.Obs.invcov),data_tr))[:,np.newaxis]
+		data_cv = np.array(map(lambda x: W.samp_gaussian_lnlike(x,W.Obs.y,W.Obs.invcov),data_cv))[:,np.newaxis]
+		fid_data = np.array(map(np.median,data_tr.T))
+
 	# Initialize KLT
 	W.E.klt(data_tr,fid_data=fid_data)
 
@@ -529,8 +525,8 @@ if __name__ == "__main__":
 	print_message('...configuring emulator and sampler')
 	print_time()
 	k = 5
-	use_pca = True
-	emode_variance_div = 100.0
+	use_pca = False
+	emode_variance_div = 10.0
 	calc_noise = False
 	norm_noise = False
 	fast = False
@@ -541,41 +537,59 @@ if __name__ == "__main__":
 	NN_hyper = False
 	NN_hyper_k = 30
 
-	sample_noise = 1e-5 * np.linspace(1,10,N_modes).reshape(N_modes,1)
+	# First Guess of GP Hyperparameters
+	ell = np.array([[2.0 for i in range(N_params)] for i in range(N_modes)]) / np.linspace(1.0,10.0,N_modes).reshape(N_modes,1)
+	ell_bounds = np.array([[1e-2,1e2] for i in range(N_modes)])
 
-	# Solve for GP Hyperparameters for every grid point
-	#theta0 = np.array([1.0,1.0,1.0])
-	#theta0 = np.array([0.1,0.1,0.1])
-	#theta0 = np.array([0.17058725,  0.0139115,   0.10627892])
-	theta0 = np.array([[0.1 for i in range(N_params)] for i in range(N_modes)]) *\
-						np.linspace(1.0,5.0,N_modes).reshape(N_modes,1)
-	thetaL = theta0/10
-	thetaU = theta0*10
-	thetaL = None
-	thetaU = None
+	noise_var = 1e-8 * np.linspace(1,100,N_modes)
+	noise_bounds = np.array([[1e-8,1e-2] for i in range(N_modes)])
+
+	# Insert HP into GP
+	kernels = map(lambda x: gp.kernels.RBF(*x[:2]) + gp.kernels.WhiteKernel(*x[2:]), zip(ell,ell_bounds,noise_var,noise_bounds))
 
 	if use_pca == False:
-		data_tr = W.E.data_tr.T[W.E.model_lim].T
-		W.E.data_tr = data_tr
-		W.E.fid_data = W.E.fid_data[W.E.model_lim]
-		N_modes = np.where(W.E.model_lim==True)[0].size
-		W.E.N_modes = N_modes
+		if trans_lnlike == False:
+			data_tr = data_tr.T[W.Obs.model_lim].T
+			W.E.data_tr = data_tr
+			W.E.fid_data = fid_data[W.Obs.model_lim]
+			N_modes = len(W.Obs.model_lim==True)
+		else:
+			N_modes = 1
+			N_data = 1
 		N_data = N_modes
+		W.E.N_modes = N_modes
 		W.E.N_data = N_data
+		emode_variance_div = 1.0
 
+	# Separate regressors into modegroups
 	W.E.group_eigenmodes(emode_variance_div=emode_variance_div)
-		
-	gp_kwargs = {'regr':'linear','theta0':theta0,'thetaL':thetaL,'thetaU':thetaU,'random_start':1,'verbose':False,
-				 'optimizer':'fmin_cobyla','normalize':True,'corr':'squared_exponential','nugget':sample_noise}
 
-	gp_kwargs_arr = np.array([gp_kwargs.copy() for i in range(W.E.N_modegroups)])
-	insert(gp_kwargs_arr,'theta0',theta0)
-	insert(gp_kwargs_arr,'thetaU',thetaU)
-	insert(gp_kwargs_arr,'thetaL',thetaL)
-	insert(gp_kwargs_arr,'nugget',sample_noise)
+	names       = ['kernel','copy_X_train','optimizer','n_restarts_optimizer']
+	optimize    = None#'fmin_l_bfgs_b'
+	n_restarts  = 0
+	gp_kwargs_arr = np.array([dict(zip(names,[kernels[i],False,optimize,n_restarts])) for i in map(lambda x: x[0],W.E.modegroups)])
 
-	kwargs_tr = {'use_pca':use_pca,'scale_by_std':False,'calc_noise':calc_noise,'norm_noise':norm_noise,
-				 'sample_noise':sample_noise,'verbose':False,'invL':W.E.invL,'emode_variance_div':emode_variance_div,
+	# Insert precomputed HP
+	load_hype = True
+	if load_hype == True:
+		file = open('forecast_hyperparams.pkl','rb')
+		input = pkl.Unpickler(file)
+		hp_dict = input.load()
+		file.close()
+
+		# check variables
+		emode_variance_div = hp_dict['emode_variance_div']
+		W.E.group_eigenmodes(emode_variance_div=emode_variance_div)
+		optimize = None
+		n_restarts = 0
+
+		# insert kernels into gp_kwargs_arr
+		gp_kwargs_arr = np.array([dict(zip(names,[hp_dict['fit_kernels'][i],False,optimize,n_restarts])) for i in range(W.E.N_modegroups)])
+
+
+	# Create training kwargs
+	kwargs_tr = {'use_pca':use_pca,'scale_by_std':scale_by_std,'calc_noise':calc_noise,'norm_noise':norm_noise,
+				 'noise_var':noise_var,'verbose':False,'invL':W.E.invL,'emode_variance_div':emode_variance_div,
 				 'fast':fast,'compute_klt':compute_klt,'save_chol':save_chol,
 				 'gp_kwargs_arr':gp_kwargs_arr}
 
@@ -616,6 +630,20 @@ if __name__ == "__main__":
 		print_time()
 		W.emu_train(W.E.data_tr,W.E.grid_tr,fid_data=W.E.fid_data,fid_params=W.E.fid_params,kwargs_tr=kwargs_tr)
 		print_time()
+
+		# Print out fitted hyperparameters
+		if W.E.GP[0].optimizer is not None:
+			fit_kernels = []
+			for i in range(len(W.E.GP)): fit_kernels.append(W.E.GP[i].kernel_)
+			hyp_dict = {'N_modes':W.E.N_modes,'N_modegroups':W.E.N_modegroups,'modegroups':W.E.modegroups,\
+							'emode_variance_div':emode_variance_div,'N_samples':W.E.N_samples,'fit_kernels':fit_kernels,\
+							'data_tr':data_tr,'grid_tr':grid_tr,'data_cv':data_cv,'grid_cv':grid_cv,'fid_params':fid_params,'fid_data':fid_data}
+
+			param_filename = 'forecast_hyperparams.pkl'
+			f = open(param_filename,'wb')
+			output = pkl.Pickler(f)
+			output.dump(hyp_dict)
+			f.close()
 
 	#################
 	### FUNCTIONS ###
@@ -661,8 +689,8 @@ if __name__ == "__main__":
 		mean_err = np.array(map(lambda x: np.median(x),err.T))
 		central_err = err[np.where(np.abs(err)<np.std(err))]
 		std = np.std(central_err)
-		rms_err = np.sqrt(astrostats.biweight_location(err.ravel()**2))
-		rms_std_err = astrostats.biweight_midvariance(err.ravel())
+		rms_err = np.sqrt(astats.biweight_location(err.ravel()**2))
+		rms_std_err = astats.biweight_midvariance(err.ravel())
 		# Get CV error at each redshift
 		recon_mat = np.array(map(lambda x: W.obs_mat2row(x,mat2row=False), recon))
 		cv_mat    = np.array(map(lambda x: W.obs_mat2row(x,mat2row=False), data_cv))
@@ -723,10 +751,10 @@ if __name__ == "__main__":
 			ax = fig.add_subplot(3,3,i+4)
 			# Get Eigenvector and kz data
 			eig_vec = W.E.eig_vecs[i]
-
 			# yz_eigvector plot
 			cmap = mp.cm.get_cmap('coolwarm',41)
-			im = ax.scatter(W.Obs.x_ext,zarr_vec,c=eig_vec,marker='o',s=35,edgecolors='',alpha=0.9,cmap=cmap,vmin=-0.5,vmax=0.5)
+			vavg = (eig_vec.max()+np.abs(eig_vec.min()))/2.0
+			im = ax.scatter(W.Obs.x_ext,zarr_vec,c=eig_vec,marker='o',s=35,edgecolors='',alpha=0.9,cmap=cmap,vmin=-vavg,vmax=vavg)
 			ax.set_xlabel(r'$k$ (Mpc$^{-1}$)',fontsize=12)
 			ax.set_xscale('log')
 			ax.set_xlim(1e-1,3)
@@ -741,8 +769,7 @@ if __name__ == "__main__":
 	### END FUNCTIONS ###
 	#####################
 
-	raise NameError
-	plot_eigenmodes = True
+	plot_eigenmodes = False
 	if plot_eigenmodes == True:
 		# Plot first few eigenmodes and scree plot
 		gs = gridspec.GridSpec(3,2)
@@ -757,25 +784,27 @@ if __name__ == "__main__":
 		# Make Scree Plot
 		ax1.grid(True,which='major')
 		ax1.set_yscale('log')
-		ax1.scatter(np.arange(3,len(W.E.eig_vals))+1,W.E.eig_vals[3:],facecolor='k',s=40,marker='o',edgecolor='',alpha=0.75)
-		ax1.scatter([1],W.E.eig_vals[0],facecolor='b',marker='o',s=40,edgecolor='',alpha=0.75)
-		ax1.scatter([2],W.E.eig_vals[1],facecolor='g',marker='o',s=40,edgecolor='',alpha=0.75)
-		ax1.scatter([3],W.E.eig_vals[2],facecolor='r',marker='o',s=40,edgecolor='',alpha=0.75)
-		ax1.set_xlim(0,50)
+		ax1.scatter(np.arange(2,len(W.E.eig_vals))+1,W.E.eig_vals[2:],facecolor='k',s=40,marker='o',edgecolor='',alpha=0.75)
+		ax1.scatter([1],W.E.eig_vals[0],facecolor='b',marker='o',s=50,edgecolor='',alpha=0.75)
+		ax1.scatter([2],W.E.eig_vals[1],facecolor='r',marker='o',s=50,edgecolor='',alpha=0.75)
+		#ax1.scatter([3],W.E.eig_vals[2],facecolor='r',marker='o',s=40,edgecolor='',alpha=0.75)
+		ax1.set_xlim(0,len(W.E.eig_vals))
 		ax1.set_xlabel(r'Eigenmode \#',fontsize=16)
 		ax1.set_ylabel(r'Eigenvalue',fontsize=16)
-		ax1.annotate(r'HERA Forecast Training Set',fontsize=14,xy=(0.6,0.75),xycoords='axes fraction')
+		ax1.annotate(r'HERA Forecast Training Set',fontsize=14,xy=(0.61,0.73),xycoords='axes fraction')
 
-		# Plot power spectra at 3 redshifts
+		# Plot power spectra at 4 redshifts
 		z1,z2,z3 = 5, 13, 19
 		ax2.grid(True)
 		ax2.set_xscale('log')
 		ax2.set_yscale('log')
-		p0, = ax2.plot(W.Obs.x[z1],W.obs_mat2row(W.E.fid_data,mat2row=False)[z1],linestyle='-',linewidth=2,color='k',alpha=0.75)
-		p1, = ax2.plot(W.Obs.x[z2],W.obs_mat2row(W.E.fid_data,mat2row=False)[z2],linestyle='--',linewidth=2,color='k',alpha=0.75)
-		p2, = ax2.plot(W.Obs.x[z3],W.obs_mat2row(W.E.fid_data,mat2row=False)[z3],linestyle=':',linewidth=2,color='k',alpha=0.75)
+		kbins = W.obs_track(['ps'],arr=W.Obs.x)
+		fdat = W.obs_track(['ps'],arr=W.obs_mat2row(W.E.fid_data,mat2row=False))
+		p0, = ax2.plot(kbins[z1],fdat[z1],linestyle='-',linewidth=2,color='k',alpha=0.75)
+		p1, = ax2.plot(kbins[z2],fdat[z2],linestyle='--',linewidth=2,color='k',alpha=0.75)
+		p2, = ax2.plot(kbins[z3],fdat[z3],linestyle=':',linewidth=2,color='k',alpha=0.75)
 		ax2.legend([p0,p1,p2],[r'$z=8.0$',r'$z=12.0$',r'$z=15.0$'],loc=2)
-		ax2.set_xlim(1e-1,2)
+		ax2.set_xlim(1e-1,4)
 		ax2.set_ylim(8,2e4)
 		ax2.set_xlabel(r'$k$ ($h$ Mpc$^{-1}$)',fontsize=15)
 		ax2.set_ylabel(r'$\Delta^{2}$',fontsize=15)
@@ -783,40 +812,84 @@ if __name__ == "__main__":
 		# Plot Eigenmodes
 		ax4.grid(True)
 		ax4.set_xscale('log')
-		#ax4.set_yscale('log')
-		p3, = ax4.plot(W.Obs.x[z1],W.obs_mat2row(W.E.eig_vecs[0],mat2row=False)[z1]+1,linestyle='-',color='b',linewidth=1.5,alpha=0.5)
-		p4, = ax4.plot(W.Obs.x[z1],W.obs_mat2row(W.E.eig_vecs[1],mat2row=False)[z1]+1,linestyle='-',color='g',linewidth=1.5,alpha=0.5)
-		p5, = ax4.plot(W.Obs.x[z1],W.obs_mat2row(W.E.eig_vecs[2],mat2row=False)[z1]+1,linestyle='-',color='r',linewidth=1.5,alpha=0.5)
-		p5, = ax4.plot(W.Obs.x[z2],W.obs_mat2row(W.E.eig_vecs[0],mat2row=False)[z2]+1,linestyle='--',color='b',linewidth=1.5,alpha=0.5)
-		p6, = ax4.plot(W.Obs.x[z2],W.obs_mat2row(W.E.eig_vecs[1],mat2row=False)[z2]+1,linestyle='--',color='g',linewidth=1.5,alpha=0.5)
-		p7, = ax4.plot(W.Obs.x[z2],W.obs_mat2row(W.E.eig_vecs[2],mat2row=False)[z2]+1,linestyle='--',color='r',linewidth=1.5,alpha=0.5)
-		p8, = ax4.plot(W.Obs.x[z3],W.obs_mat2row(W.E.eig_vecs[0],mat2row=False)[z3]+1,linestyle=':',color='b',linewidth=1.5,alpha=0.5)
-		p9, = ax4.plot(W.Obs.x[z3],W.obs_mat2row(W.E.eig_vecs[1],mat2row=False)[z3]+1,linestyle=':',color='g',linewidth=1.5,alpha=0.5)
-		p10, = ax4.plot(W.Obs.x[z3],W.obs_mat2row(W.E.eig_vecs[2],mat2row=False)[z3]+1,linestyle=':',color='r',linewidth=1.5,alpha=0.5)
+		evecs = np.array(map(lambda x: W.obs_track(['ps'],arr=W.obs_mat2row(x,mat2row=False)),W.E.eig_vecs))
+		p3, = ax4.plot(kbins[z1],evecs[0][z1]/np.abs(evecs[0][z1]).max(),linestyle='-',color='b',linewidth=1.5,alpha=0.5)
+		p4, = ax4.plot(kbins[z1],evecs[1][z1]/np.abs(evecs[1][z1]).max(),linestyle='-',color='r',linewidth=1.5,alpha=0.5)
+		p5, = ax4.plot(kbins[z2],evecs[0][z2]/np.abs(evecs[0][z2]).max(),linestyle='--',color='b',linewidth=1.5,alpha=0.5)
+		p6, = ax4.plot(kbins[z2],evecs[1][z2]/np.abs(evecs[1][z2]).max(),linestyle='--',color='r',linewidth=1.5,alpha=0.5)
+		p8, = ax4.plot(kbins[z3],evecs[0][z3]/np.abs(evecs[0][z3]).max(),linestyle=':',color='b',linewidth=1.5,alpha=0.5)
+		p9, = ax4.plot(kbins[z3],evecs[1][z3]/np.abs(evecs[1][z3]).max(),linestyle=':',color='r',linewidth=1.5,alpha=0.5)
+		ax.axhline(0,color='k')
 		ax4.set_xlabel(r'$k$ ($h$ Mpc$^{-1}$)',fontsize=15)
-		ax4.set_ylabel(r'$\Delta^{2} - \langle\Delta^{2}\rangle + 1$',fontsize=15)
-		ax4.set_xlim(1e-1,2)
-		ax4.set_ylim(8e-1,1.5)
+		ax4.set_ylabel(r'$\phi_{\Delta^{2}}$',fontsize=15)
+		ax4.set_xlim(1e-1,4)
+		ax4.set_ylim(-1.1,1.1)
 
 		# Plot Neutral Fraction and Brightness Temperature
 		ax3b = ax3.twinx()
-		p11, = ax3.plot(z_array,fiducial_data['data'][~W.E.model_lim][::2],color='rosybrown',linewidth=2,alpha=0.75)
-		p12, = ax3b.plot(z_array,fiducial_data['data'][~W.E.model_lim][1:][::2],color='forestgreen',linewidth=2,alpha=0.75)
+		gdat = W.obs_track(['xe','Tb'],arr=W.obs_mat2row(W.E.fid_data,mat2row=False))
+		p11, = ax3.plot(z_array,gdat.T[0],color='k',linestyle='-',linewidth=2,alpha=0.75)
+		p12, = ax3b.plot(z_array,gdat.T[1],color='k',linestyle='--',linewidth=2,alpha=0.75)
 		ax3.legend([p11,p12],[r'$\langle x_{HI}\rangle$',r'$\langle\delta T_{b}\rangle$'],loc=1)
 		ax3.set_xlabel(r'$z$',fontsize=16)
 		ax3.set_ylabel(r'$\langle x_{HI}\rangle$',fontsize=16)
 		ax3b.set_ylabel(r'$\langle\delta T_{b}\rangle$ (mK)',fontsize=16)
 		ax3.set_xlim(6,25)
-		ax3.set_ylim(0,1)
+		ax3.set_ylim(0,1.1)
 		ax3b.set_ylim(-200,100)
 
 		# Plot Eigenmodes
-		p13, = ax5.plot(z_array)
+		ax5b = ax5.twinx()
+		evecs = np.array(map(lambda x: W.obs_track(['xe','Tb'],arr=W.obs_mat2row(x,mat2row=False)),W.E.eig_vecs))
+		evecs = np.array(map(lambda x: x/map(np.max,np.abs(x.T)), evecs) )
+		p13, = ax5.plot(z_array,evecs[0].T[0],linestyle='-',color='b',linewidth=1.5,alpha=0.5)
+		p14, = ax5.plot(z_array,evecs[1].T[0],linestyle='-',color='r',linewidth=1.5,alpha=0.5)
+		p16, = ax5b.plot(z_array,evecs[0].T[1],linestyle='--',color='b',linewidth=1.5,alpha=0.5)
+		p17, = ax5b.plot(z_array,evecs[1].T[1],linestyle='--',color='r',linewidth=1.5,alpha=0.5)
+		ax.axhline(0,color='k')
+		ax5.set_xlabel(r"$z$",fontsize=16)
+		ax5.set_ylabel(r'$\phi_{x_{HI}}$',fontsize=16)
+		ax5b.set_ylabel(r'$\phi_{T_{B}}$',fontsize=16)
+		ax5.set_xlim(6,25)
+		ax5.set_ylim(-1.1,1.1)
+		ax5b.set_ylim(-1.1,1.1)
 
 		fig.savefig('data_compress.png',dpi=200,bbox_inches='tight')
 		mp.close()
 
-	cross_validate_like = True
+
+	cross_validate_ps = True
+	calibrate_error = True
+	add_lnlike_cov = True
+	if cross_validate_ps == True:
+		recon, recon_err, weights, true_w, weights_err = cross_validate()
+		calc_errs(recon,recon_err)
+		plot_cross_valid(fname='cross_validate_ps.png')
+
+		if calibrate_error == True:
+			resid_68 = np.array(map(astats.biweight_midvariance, data_cv.T - recon.T))
+			resid_68 += np.array(map(astats.biweight_location, data_cv.T - recon.T))
+			mean_pred_err = np.array(map(astats.biweight_location, recon_err.T))
+			err_norm = resid_68 / mean_pred_err
+			W.E.recon_err_norm = err_norm
+			recon_err *= W.E.recon_err_norm
+
+		if add_lnlike_cov == True:
+			print_message('...adding pspec cross validated errors to lnlike covariance as weights',type=0)
+			X = recon.T-data_cv.T
+			ps_err_cov = np.inner(X,X) / len(recon)
+			lnprob_kwargs['add_lnlike_cov'] = ps_err_cov
+
+			fig = mp.figure(figsize=(5,5))
+			ax = fig.add_subplot(111)
+			ax.set_title('Emulator Error Covariance',fontsize=10)
+			im1 = ax.matshow(ps_err_cov,origin='lower',cmap='seismic',vmin=-0.25,vmax=0.25)
+			fig.colorbar(im1,label='covariance')
+			ax.set_xlabel(r'$\bm{d}$',fontsize=15)
+			ax.set_ylabel(r'$\bm{d}$',fontsize=15)
+
+
+	cross_validate_like = False
 	if cross_validate_like == True:
 		print_message('...cross validating likelihoods')
 		print_time()
@@ -827,160 +900,21 @@ if __name__ == "__main__":
 		frac_err = (e_like-t_like)/t_like
 		try: patches = ax.hist(frac_err,bins=20,histtype='step',range=(-2.0,2.0),normed=True,color='b')
 		except UnboundLocalError: pass
-		ax.set_xlim(-2.0,2.0)
+		ax.set_xlim(-1.0,1.0)
 		ax.set_xlabel('likelihood fractional error',fontsize=14)
-		ax.annotate('robust err std = '+str(np.around(astrostats.biweight_midvariance(frac_err)*100,2))+'%',xy=(0.2,0.8),xycoords='axes fraction')
+		ax.annotate('robust err std = '+str(np.around(astats.biweight_midvariance(frac_err)*100,2))+'%',xy=(0.2,0.8),xycoords='axes fraction')
 		fig.savefig('cross_validate_like.png',dpi=100,bbox_inches='tight')
-		print_time()
-
-	cross_validate_ps = True
-	add_lnlike_err = True
-	if cross_validate_ps == True:
-		recon, recon_err, weights, true_w, weights_err = cross_validate()
-		calc_errs(recon,recon_err)
-		plot_cross_valid(fname='cross_validate_ps.png')
-
-		if add_lnlike_err == True:
-			print_message('...adding lnlike cross validated errors to lnlike covariance as weights',type=0)
-
-			## Add emulator error to lnlikelihood weight vector
-			rel_weight_vec = (frac_err_vec/np.min(frac_err_vec))
-			weight_constant = 1.0
-			print_message('...weight constant = '+str(weight_constant),type=0)
-			add_lnlike_cov = W.S.data_cov * np.eye(W.Obs.cov.shape[0])*(frac_err_vec*rel_weight_vec*weight_constant)**2
-			lnprob_kwargs['add_lnlike_cov'] = add_lnlike_cov
-
-			print_message('...redoing lnlike cross validation with new covariance weights')
-			print_time()
-			e_like,t_like,o_vars = W.samp_cross_valid(grid_cv,data_cv,lnlike_kwargs=lnprob_kwargs,also_record=['lnlike_emu_err'])
-			fig = mp.figure(figsize=(5,5))
-			ax = fig.add_subplot(111)
-			frac_err = (e_like-t_like)/t_like
-			try: patches = ax.hist(frac_err,bins=20,histtype='step',range=(-2.0,2.0),normed=True,color='r')
-			except UnboundLocalError: pass
-			ax.set_xlim(-2.0,2.0)
-			ax.set_xlabel('likelihood fractional error',fontsize=14)
-			ax.annotate('robust err std = '+str(np.around(astrostats.biweight_midvariance(frac_err)*100,2))+'%',xy=(0.2,0.8),xycoords='axes fraction')
-			fig.savefig('cross_validate_like2.png',dpi=100,bbox_inches='tight')
-			print_time()
-
-	regress_for_hyperparams = False
-	if regress_for_hyperparams == True:
-		print_message('...regressing for optimal GP hyperparameters')
-		print_time()
-
-		ph_cv = np.dot(W.E.invL,(grid_cv-W.E.fid_params).T).T
-		theta0_test = 10**np.linspace(-2.0,1.0,45)
-		p_ind = 0
-
-		# Edit gp_kwargs_arr
-		for i in range(W.E.N_modegroups):
-			gp_kwargs_arr[i]['thetaL'] = None
-			gp_kwargs_arr[i]['thetaU'] = None
-			
-		# Get all the emulated and true weights from cv samples
-		w_em = []
-		w_cv = []
-		precision = []
-
-		# Iterate over theta0 choices
-		for i in range(len(theta0_test)):
-			# Assign theta0 test values for each GP
-			for k in range(W.E.N_modegroups):
-				gp_kwargs_arr[k]['theta0'][p_ind] = theta0_test[i]
-
-			kwargs_tr['gp_kwargs_arr'] = gp_kwargs_arr
-
-			# Train emulator with updated theta0 value
-			W.emu_train(W.E.data_tr,W.E.grid_tr,fid_data=W.E.fid_data,fid_params=W.E.fid_params,kwargs_tr=kwargs_tr)
-
-			# Get emulated and true weights over all cv samples
-			w_em_theta0 = []
-			for j in range(len(grid_cv[0:30])):
-				W.E.cross_validate(grid_cv[j],data_cv[j],predict_kwargs=predict_kwargs)
-				w_em_theta0.append(W.E.weights_cv[0])
-				if i == 0: w_cv.append(W.E.a_ij_cv)
-				if i == 0: precision.append(np.abs(X_sph_cv[j][p_ind]))
-				
-			w_em.append(w_em_theta0)
-
-		w_em = np.array(w_em)
-		w_cv = np.array(w_cv)
-		precision = (np.array(precision)/np.min(precision))**(-1.0)
-
-		def cost(w_em,w_cv,theta0,precision=None,reg_coeff=10.0):
-			chisq = (w_em-w_cv)**2
-			if precision is not None:
-				chisq *= precision
-
-			chisq = np.sum(chisq) + theta0*reg_coeff
-			return chisq
-
-		reg_coeff = 0.1
-		chisq = []
-		for k in range(W.E.N_modegroups):
-			# iterate over the theta0 test values
-			modegroup_chisq = []
-			for i in range(len(theta0_test)):
-				modegroup_chisq.append( cost(w_em[i,:,:].T[W.E.modegroups[k]].T.ravel(), 
-							w_cv.T[W.E.modegroups[k]].T.ravel(),
-							theta0_test[i],
-							precision=np.array(list(precision)*len(W.E.modegroups[k])),
-							reg_coeff=reg_coeff) )
-				
-			chisq.append(modegroup_chisq)
-
-		chisq = np.array(chisq)
-
-		# Get best-fit eigenmode hyperparameters
-		theta0_bf = []
-		for i in range(N_modes):
-			theta0_bf.append( theta0_test[np.where(chisq[i]==chisq[i].min())[0][0]] )
-		theta0_bf = np.array(theta0_bf)
-
-		# Insert best-fit hyperparams into GP_kwargs, retrain
-		theta0.T[p_ind] = theta0_bf
-		insert(gp_kwargs_arr,'theta0',theta0)
-		if LAYG == False:
-			W.emu_train(W.E.data_tr,W.E.grid_tr,fid_data=W.E.fid_data,fid_params=W.E.fid_params,kwargs_tr=kwargs_tr)
-
-
-		cmap = mp.cm.get_cmap('rainbow',len(chisq))
-		colors = cmap(np.linspace(0,1,len(chisq)))
-		norm = matplotlib.colors.Normalize(vmin=-0.5, vmax=len(chisq)-0.5)
-
-		fig = mp.figure(figsize=(6,6))
-
-		ax = fig.add_subplot(111)
-		for i in range(len(chisq))[::1]:
-			ax.plot(theta0_test,chisq[i],alpha=0.75,color=colors[i])
-			ax.axvline(theta0_bf[i],color=colors[i],alpha=0.5)
-			
-		ax.set_yscale('log')
-		ax.set_xscale('log')
-		ax.set_xlabel('theta0',fontsize=15)
-		ax.set_ylabel(r'$\chi^{2}$',fontsize=16)
-		#ax.set_ylim(0,500)
-
-		cax = fig.add_axes([0.92, 0.05, 0.03, 0.9])
-		cb1 = matplotlib.colorbar.ColorbarBase(cax,cmap=cmap,norm=norm,orientation='vertical')
-		cb1.set_ticks(np.arange(len(chisq)))
-		cb1.set_label(r'Eigenmode #',fontsize=13)
-		fig.savefig('GPhyperparams.png',dpi=100,bbox_inches='tight')
 		mp.close()
 		print_time()
 
-		cross_validate_ps = False
-		if cross_validate_ps == True:
-			recon, recon_err, weights, true_w, weights_err = cross_validate()
-			calc_errs(recon,recon_err)
-			plot_cross_valid(fname='cross_validate_ps.png')
 
+	print_message('...making plots')
+	print_time()
 	# Plot Eigenmode Weight Prediction
-	plot_weight_pred = True
+	plot_weight_pred = False
 	if plot_weight_pred == True:
-		plot_modes = [0]
-		plot_params = [0,1,2,3,4,5,6,7,8,9,10]
+		plot_modes = [0,1,2]
+		plot_params = [0,2,3,5,8,9]
 
 		gs = gridspec.GridSpec(4,4)
 		gs1 = gs[:3,:]
@@ -1025,10 +959,10 @@ if __name__ == "__main__":
 				mp.close()
 
 	# Plot PS Prediction
-	plot_ps_pred = True
+	plot_ps_pred = False
 	if plot_ps_pred == True:
-		plot_kbins = [99]
-		plot_params = [0,1,2,3,4,5,6,7,8,9,10]
+		plot_kbins = [20,50,80]
+		plot_params = [0,2,5,7,9]
 
 		gs = gridspec.GridSpec(4,4)
 		gs1 = gs[:3,:]
@@ -1073,12 +1007,12 @@ if __name__ == "__main__":
 				fig.savefig('ps_pred_'+params[p]+'_kbin'+str(kbin)+'.png',dpi=200,bbox_inches='tight')
 				mp.close()
 
-	# Plot PS Reconstruction
-	plot_ps_recon = True
+	# Plot Fractional PS Reconstruction
+	plot_ps_recon = False
 	if plot_ps_recon == True:
 
 		# Pick redshifts
-		z_arr = [3]
+		z_arr = np.arange(44)[4:-4][::2]
 
 		# Calcualte error
 		ps_frac_err = recon / data_cv
@@ -1097,7 +1031,7 @@ if __name__ == "__main__":
 			ax.annotate(r'$z='+str(z_array[z])+'$',xy=(0.1,0.8),xycoords='axes fraction',fontsize=18)
 
 			ax.set_xlim(1.1e-1,1.5)
-			ax.set_ylim(0.8,1.2)
+			ax.set_ylim(0.85,1.15)
 			ax.set_xscale('log')
 			ax.set_xlabel(r'$k\ (h\ Mpc^{-1})$',fontsize=18)
 			ax.set_ylabel(r'$\hat{\Delta^{2}}/\Delta^{2}$',fontsize=18)
@@ -1105,6 +1039,7 @@ if __name__ == "__main__":
 			fig.savefig('ps_recon_z'+str(z_array[z])+'.png',dpi=200,bbox_inches='tight')
 			mp.close()
 
+	print_time()
 	# Initialize Ensemble Sampler
 	print_message('...initializing ensemble sampler')
 	print_time()
@@ -1118,7 +1053,7 @@ if __name__ == "__main__":
 	if add_priors == True:
 		print_message('...adding non-flat priors',type=0)
 		planck_cov = np.loadtxt('base_TTTEEE_lowl_plik.covmat')[[0,1,5]].T[[0,1,5]].T
-		std_multiplier = 3.0
+		std_multiplier = 1.0
 
 		# Add non-correlated Gaussian Priors
 		prior_params = ['sigma8','H0']

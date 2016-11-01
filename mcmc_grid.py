@@ -175,10 +175,10 @@ if __name__ == '__main__':
 
 	if send_slurm_jobs == True:
 		# Assign run variables
-		Nruns       	= 2000								# Total number of simulations we need to run
-		Njobs       	= 66								# Number of different SLURM jobs to submit
+		Nruns       	= 4000								# Total number of simulations we need to run
+		Njobs       	= 100								# Number of different SLURM jobs to submit
 		Nnodes      	= 1								# Number of nodes to request per job
-		tasks_per_node	= 6								# Number of tasks to run per node
+		tasks_per_node	= 8								# Number of tasks to run per node
 		Ntasks      	= tasks_per_node * Nnodes		# Number of individual tasks (processes) to run across all nodes
 		cpus_per_task	= 4								# Number of CPUs to allocate per task (threads)
 		Nseq        	= 5								# Number of sequential simulations to run per task
@@ -186,7 +186,7 @@ if __name__ == '__main__':
 		walltime		= '30:00:00'						# Amount of walltime for slurm job
 		base_dir		= 'param_space/lhs/'	# Base drectory
 		mem_per_cpu		= 500							# Memory in MB per cpu
-		Nstart			= 4000								# Start index in directory file
+		Nstart			= 8000								# Start index in directory file
 		partition		= 'regular'						# NERSC Partition to run on 
 		job_name		= 'Small'						# Job name
 		infile			= 'slurm_21cmFAST_old.sh'		# SLURM infile

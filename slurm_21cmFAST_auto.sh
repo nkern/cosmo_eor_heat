@@ -5,6 +5,7 @@
 #SBATCH --job-name=Small
 #SBATCH --output=job_%j.out
 #SBATCH --qos=normal
+#SBATCH --constraint=haswell
 
 echo "--------------------------------"
 echo "running slurm_21cmFAST.sh"
@@ -15,14 +16,14 @@ echo ""
 IFS=$'\r\n' command eval 'direcs=($(<direcs.tab))'
 
 # Slice direcs
-begin=5980
-tot_length=20
+begin=11960
+tot_length=4000
 direcs=("${direcs[@]:$begin:$tot_length}")
 
 # Define Loop Variables
-Nseq=4
+Nseq=5
 begin=0
-length=6
+length=8
 
 # Iterate over Sequential Runs
 for i in $(seq 0 $((Nseq-1)))

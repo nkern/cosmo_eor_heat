@@ -5,6 +5,7 @@
 #SBATCH --job-name=@@job_name@@
 #SBATCH --output=job_%j.out
 #SBATCH --qos=normal
+#SBATCH --constraint=haswell
 
 echo "--------------------------------"
 echo "running slurm_21cmFAST.sh"
