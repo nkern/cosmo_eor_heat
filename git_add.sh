@@ -14,6 +14,7 @@ git add camb_run.py
 git add k_range.tab
 git add sample_HERA127_limits.tab
 git add sample_HERA331_limits.tab
+git add new_planck_cov.tab
 
 # Consolidated Data Files
 git add TS_1_data.pkl
