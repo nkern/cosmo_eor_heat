@@ -56,6 +56,15 @@ mp.rcParams['text.usetex'] = True
 ## Flags
 
 
+## Separate out multiple processes
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
+
+if rank > 0:
+	sys.stdout = open('process'+str(rank)+'_stdout.out','w')
+	sys.stderr = open('process'+str(rank)+'_stderr.out','w')
+
 ## Program
 if __name__ == "__main__":
 
@@ -106,7 +115,7 @@ if __name__ == "__main__":
 
 		# Separate Data
 		tr_len = 2000
-		rando = np.random.choice(np.arange(tr_len),size=2000,replace=False)
+		rando = np.random.choice(np.arange(tr_len),size=0,replace=False)
 		rando = np.array(map(lambda x: x in rando,np.arange(tr_len)))
 
 		data_tr = TS_data['data'][np.argsort(TS_data['indices'])][rando]
@@ -120,8 +129,8 @@ if __name__ == "__main__":
 			TS_data = gauss_hera331_data
 
 			# Separate Data
-			tr_len = 3000
-			rando = np.random.choice(np.arange(tr_len),size=2500,replace=False)
+			tr_len = 5000
+			rando = np.random.choice(np.arange(tr_len),size=5000,replace=False)
 			rando = np.array(map(lambda x: x in rando,np.arange(tr_len)))
 
 			data_tr = np.concatenate([data_tr,TS_data['data'][np.argsort(TS_data['indices'])][rando]])
@@ -129,10 +138,10 @@ if __name__ == "__main__":
 			direcs_tr = np.concatenate([direcs_tr,TS_data['direcs'][np.argsort(TS_data['indices'])][rando]])
 
 		# Choose Cross Validation Set
-		CV_data 		= gauss_hera331_data
+		CV_data 		= cross_valid_data
 		no_rando		= False
-		TS_remainder	= True
-		use_remainder	= True
+		TS_remainder	= False
+		use_remainder	= False
 
 		# Separate Data
 		if TS_remainder == True:
@@ -272,7 +281,7 @@ if __name__ == "__main__":
 		print_time()
 
 	### Variables for Emulator ###
-	N_modes = 50
+	N_modes = 30
 	N_params = len(params)
 	N_data = 660
 	N_samples = len(data_tr)
@@ -281,13 +290,14 @@ if __name__ == "__main__":
 	ell = np.array([10 for i in range(N_params)])
 	recon_err_norm = 1.0
 	kernel = gp.kernels.RBF(ell)
-	scale_by_std = True
+	scale_by_std = False
+	scale_by_obs_errs = False
 
 	gp_kwargs = {'kernel':kernel}
 
 	variables.update({'params':params,'N_params':N_params,'N_modes':N_modes,'N_samples':N_samples,'N_data':N_data,
 						'reg_meth':reg_meth,'poly_deg':poly_deg,'gp_kwargs':gp_kwargs,'scale_by_std':scale_by_std,
-						'recon_err_norm':recon_err_norm})
+						'scale_by_obs_errs':scale_by_obs_errs,'recon_err_norm':recon_err_norm})
 
 	workspace_init = {'dir_pycape':'/global/homes/n/nkern/Software/pycape',
 					  'dir_21cmSense':'/global/homes/n/nkern/Software/21cmSense'}
@@ -544,7 +554,7 @@ if __name__ == "__main__":
 	ell_bounds = np.array([[1e-2,1e2] for i in range(N_modes)])
 
 	noise_var = 1e-8 * np.linspace(1,100,N_modes)
-	noise_bounds = np.array([[1e-8,1e-2] for i in range(N_modes)])
+	noise_bounds = np.array([[1e-8,1e-1] for i in range(N_modes)])
 
 	# Insert HP into GP
 	kernels = map(lambda x: gp.kernels.RBF(*x[:2]) + gp.kernels.WhiteKernel(*x[2:]), zip(ell,ell_bounds,noise_var,noise_bounds))
@@ -586,13 +596,17 @@ if __name__ == "__main__":
 		n_restarts = 0
 
 		# insert kernels into gp_kwargs_arr
-		gp_kwargs_arr = np.array([dict(zip(names,[hp_dict['fit_kernels'][i],False,optimize,n_restarts])) for i in range(W.E.N_modegroups)])
-
+		try:
+			gp_kwargs_arr = np.array([dict(zip(names,[hp_dict['fit_kernels'][i],False,optimize,n_restarts])) for i in range(W.E.N_modegroups)])
+		except:
+			W.E.modegroups = hp_dict['modegroups']
+			W.E.N_modegroups = hp_dict['N_modegroups']
+			gp_kwargs_arr = np.array([dict(zip(names,[hp_dict['fit_kernels'][i],False,optimize,n_restarts])) for i in range(W.E.N_modegroups)])
 
 	# Create training kwargs
 	kwargs_tr = {'use_pca':use_pca,'scale_by_std':scale_by_std,'calc_noise':calc_noise,'norm_noise':norm_noise,
 				 'noise_var':noise_var,'verbose':False,'invL':W.E.invL,'emode_variance_div':emode_variance_div,
-				 'fast':fast,'compute_klt':compute_klt,'save_chol':save_chol,
+				 'fast':fast,'compute_klt':compute_klt,'save_chol':save_chol,'scale_by_obs_errs':scale_by_obs_errs,
 				 'gp_kwargs_arr':gp_kwargs_arr}
 
 	### Initialize Sampler Variables ###
@@ -640,12 +654,17 @@ if __name__ == "__main__":
 							'emode_variance_div':emode_variance_div,'N_samples':W.E.N_samples,'fit_kernels':fit_kernels,\
 							'data_tr':data_tr,'grid_tr':grid_tr,'data_cv':data_cv,'grid_cv':grid_cv,'fid_params':fid_params,'fid_data':fid_data}
 
-			param_filename = 'forecast_hyperparams.pkl'
+			i = 0
+			while True:
+				param_filename = 'forecast_hyperparams'+str(i)+'.pkl'
+				i += 1
+				if os.path.isfile(param_filename) == False: break
 			f = open(param_filename,'wb')
 			output = pkl.Pickler(f)
 			output.dump(hyp_dict)
 			f.close()
 
+	raise NameError
 	#################
 	### FUNCTIONS ###
 	#################
@@ -858,8 +877,7 @@ if __name__ == "__main__":
 		fig.savefig('data_compress.png',dpi=200,bbox_inches='tight')
 		mp.close()
 
-
-	cross_validate_ps = False
+	cross_validate_ps = True
 	calibrate_error = True
 	add_lnlike_cov = True
 	if cross_validate_ps == True:
@@ -981,7 +999,7 @@ if __name__ == "__main__":
 				pred_ps = recon.T[kbin][sel][sort]
 				true_ps = data_cv.T[kbin][sel][sort]
 				pred_ps_err = recon_err.T[kbin][sel][sort]
-				yz = W.obs_mat2row(yz_data,Nfeatures=2)[kbin]
+				yz = W.obs_mat2row(yz_data,Nfeatures=2,mat2row=True)[kbin]
 
 				ax1 = fig.add_subplot(gs1)
 				ax1.grid(True)
@@ -1046,9 +1064,7 @@ if __name__ == "__main__":
 	print_time()
 
 	sampler_kwargs = {}
-	# Check for MPI
-	comm = MPI.COMM_WORLD
-	size = comm.Get_size()
+
 	if size > 1:
 		pool = emcee.utils.MPIPool()
 		sampler_kwargs.update({'pool':pool})

@@ -38,7 +38,7 @@ from pycape.toolbox import workspace
 warnings.filterwarnings('ignore',category=DeprecationWarning)
 
 ## Flags
-interp_ps				= False
+interp_ps				= True
 add_Q					= False
 calc_sense				= False
 plot_scree				= False
@@ -52,10 +52,11 @@ if __name__ == "__main__":
 
 	###############################
 	## Load Training Set samples ##
-	grid = fits.open('TS_samples1.fits')[1].data
+	grid = fits.open('TS_samples3.fits')[1].data
 	names = grid.names
-	grid2 = fits.open('TS_samples2.fits')[1].data
-	grid = np.hstack([grid,grid2])
+	grid2 = fits.open('TS_samples4.fits')[1].data
+	grid3 = fits.open('TS_samples6.fits')[1].data
+	grid = np.hstack([grid,grid2,grid3])
 	gridf = np.array( map(lambda x: grid[x], names) ).T
 	#grid = np.array( map(lambda y: map(lambda x: "%09.5f" % x, y), gridf) )
 	grid = np.array( map(lambda y: map(lambda x: "%07.3f" % x, y), gridf) )
@@ -71,10 +72,10 @@ if __name__ == "__main__":
 
 	direcs = np.array(direcs)
 
-	sort = np.argsort(direcs)
-	indices = np.arange(len(grid))[sort]
-	direcs = np.array(direcs)[sort]
-	grid = np.array(grid)[sort]
+	sort 	= np.argsort(direcs)
+	indices	= np.arange(len(grid))[sort]
+	direcs	= np.array(direcs)[sort]
+	grid	= np.array(grid)[sort]
 	gridf	= np.array(gridf)[sort]
 
 	# Get directories that have global_params.tab
@@ -102,6 +103,7 @@ if __name__ == "__main__":
 	ps_interp_files = sorted(map(lambda x: 'ps_interp_z%06.2f.txt'%x,z_array))
 
 	# Interpolate redshift outputs to new redshift array
+	overwrite = False
 	if interp_ps == True:
 
 		# Work on new direcs only?
@@ -120,6 +122,7 @@ if __name__ == "__main__":
 
 		# Iterate through directories
 		for i in range(len(direcs)):
+			if os.path.isfile(base_direc+direcs[i]+'/global_params_interp.tab') == True and overwrite == False : continue
 			print 'working on direc '+direcs[i]
 			# Get PS data
 			k_data = []
@@ -303,7 +306,7 @@ if __name__ == "__main__":
 	write_data_to_file = True
 	if write_data_to_file == True:
 		diction = {'direcs':direcs,'data':data,'grid':grid,'indices':indices,'fid_data':fid_data,'fid_params':fid_params,'gridf':gridf}
-		file = open('gauss_hera127_data.pkl','wb')
+		file = open('gauss_hera331_data.pkl','wb')
 		output = pkl.Pickler(file)
 		output.dump(diction)
 		file.close()
