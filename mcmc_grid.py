@@ -30,13 +30,13 @@ import pyDOE
 if __name__ == '__main__':
 
 	if sample_grid == True:
-		sampler = 'lhs'
+		sampler = 'gauss'
 
 		# Load Sample Bound Information
-		#par, parbound = np.loadtxt('sample_HERA331_limits.tab',dtype='str',unpack=True)
-		par, parbound = np.loadtxt('sample_paramsearch_limits.tab',dtype='str',unpack=True)
+		par, parbound = np.loadtxt('sample_HERA331_limits.tab',dtype='str',unpack=True)
+		#par, parbound = np.loadtxt('sample_paramsearch_limits.tab',dtype='str',unpack=True)
 		parbound = np.array(parbound,float)
-		#parbound /= 2.0
+		parbound /= 2.0
 
 		# Draw random samples
 		if sampler == 'gauss':
@@ -82,7 +82,7 @@ if __name__ == '__main__':
 			samples += params_fid
 
 		# Write out samples to new fits file
-		filename = 'TS_samples5.fits'
+		filename = 'TS_samples6.fits'
 		ts_samples = {}
 		N = len(params)
 		keys = params
@@ -92,7 +92,7 @@ if __name__ == '__main__':
 		fits_table(ts_samples,keys,filename,clobber=True)
 
 	if compile_direcs == True:
-		grid = fits.open('TS_samples5.fits')[1].data
+		grid = fits.open('TS_samples6.fits')[1].data
 		names = grid.names
 		grid = fits_data(grid)
 		gridf = np.array( map(lambda x: grid[x], names) ).T
@@ -111,7 +111,7 @@ if __name__ == '__main__':
 		direcs = np.array(direcs)	
 
 		if write_direcs == True:	
-			f = open('direcs.tab','w')
+			f = open('direcs2.tab','w')
 			f.write('\n'.join(map(lambda x: base_direc+x,direcs)))
 			f.close()
 
@@ -175,18 +175,18 @@ if __name__ == '__main__':
 
 	if send_slurm_jobs == True:
 		# Assign run variables
-		Nruns       	= 4000								# Total number of simulations we need to run
-		Njobs       	= 100								# Number of different SLURM jobs to submit
+		Nruns       	= 141								# Total number of simulations we need to run
+		Njobs       	= 18								# Number of different SLURM jobs to submit
 		Nnodes      	= 1								# Number of nodes to request per job
 		tasks_per_node	= 8								# Number of tasks to run per node
 		Ntasks      	= tasks_per_node * Nnodes		# Number of individual tasks (processes) to run across all nodes
 		cpus_per_task	= 4								# Number of CPUs to allocate per task (threads)
-		Nseq        	= 5								# Number of sequential simulations to run per task
-		direc_file		= 'direcs.tab'					# File containing directories to be run
-		walltime		= '30:00:00'						# Amount of walltime for slurm job
-		base_dir		= 'param_space/lhs/'	# Base drectory
+		Nseq        	= 1								# Number of sequential simulations to run per task
+		direc_file		= 'rerun.tab'					# File containing directories to be run
+		walltime		= '6:00:00'						# Amount of walltime for slurm job
+		base_dir		= 'param_space/gauss_hera331/'	# Base drectory
 		mem_per_cpu		= 500							# Memory in MB per cpu
-		Nstart			= 8000								# Start index in directory file
+		Nstart			= 0#12000								# Start index in directory file
 		partition		= 'regular'						# NERSC Partition to run on 
 		job_name		= 'Small'						# Job name
 		infile			= 'slurm_21cmFAST_old.sh'		# SLURM infile
