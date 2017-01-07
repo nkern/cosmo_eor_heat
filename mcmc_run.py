@@ -254,7 +254,7 @@ if __name__ == "__main__":
 		#direcs_cv = TS_data['direcs'][TS_data['indices']][:tr_len][~rando]
 
 	# Plot Training Set
-	plot_tr = True
+	plot_tr = False
 	if plot_tr == True:
 		print_message('...plotting ts')
 		print_time()
@@ -266,7 +266,7 @@ if __name__ == "__main__":
 		j = 0
 		for i in range(6):
 			ax = fig.add_subplot(2,3,i+1)
-			ax.plot(grid_tr.T[j],grid_tr.T[j+1],'k,',alpha=0.75)
+			ax.plot(grid_tr.T[j][sel],grid_tr.T[j+1][sel],'k,',alpha=0.75)
 			ax.plot(grid_cv.T[j],grid_cv.T[j+1],'r.')
 			ax.set_xlim(lims[j])
 			ax.set_ylim(lims[j+1])
@@ -281,7 +281,7 @@ if __name__ == "__main__":
 		print_time()
 
 	### Variables for Emulator ###
-	N_modes = 30
+	N_modes = 40
 	N_params = len(params)
 	N_data = 660
 	N_samples = len(data_tr)
@@ -404,7 +404,7 @@ if __name__ == "__main__":
 			except: mock_data[n]=list(mock_data[n]);mock_data[n][i]=mock_data[n][i].T[mock_data['valid'][i]].T.ravel()
 			if n == 'sense_PSerrs':
 				# Cut out sense_PSerrs / sense_PSdata > x%
-				err_thresh = 0.75        # 200%
+				err_thresh = 1.0        # 200%
 				small_errs = np.where(mock_data['sense_PSerrs'][i] / mock_data['sense_PSdata'][i] < err_thresh)[0]
 				mock_data['sense_kbins'][i] = mock_data['sense_kbins'][i][small_errs]
 				mock_data['sense_PSdata'][i] = mock_data['sense_PSdata'][i][small_errs]
@@ -577,14 +577,14 @@ if __name__ == "__main__":
 	W.E.group_eigenmodes(emode_variance_div=emode_variance_div)
 
 	names       = ['kernel','copy_X_train','optimizer','n_restarts_optimizer']
-	optimize    = None#'fmin_l_bfgs_b'
-	n_restarts  = 0
+	optimize    = 'fmin_l_bfgs_b'
+	n_restarts  = 5
 	gp_kwargs_arr = np.array([dict(zip(names,[kernels[i],False,optimize,n_restarts])) for i in map(lambda x: x[0],W.E.modegroups)])
 
 	# Insert precomputed HP
 	load_hype = True
 	if load_hype == True:
-		file = open('forecast_hyperparams.pkl','rb')
+		file = open('forecast_hyperparams0.pkl','rb')
 		input = pkl.Unpickler(file)
 		hp_dict = input.load()
 		file.close()
@@ -664,7 +664,6 @@ if __name__ == "__main__":
 			output.dump(hyp_dict)
 			f.close()
 
-	raise NameError
 	#################
 	### FUNCTIONS ###
 	#################
@@ -877,7 +876,7 @@ if __name__ == "__main__":
 		fig.savefig('data_compress.png',dpi=200,bbox_inches='tight')
 		mp.close()
 
-	cross_validate_ps = True
+	cross_validate_ps = False
 	calibrate_error = True
 	add_lnlike_cov = True
 	if cross_validate_ps == True:
@@ -1071,7 +1070,6 @@ if __name__ == "__main__":
 
 	W.samp_emcee_init(lnprob_kwargs=lnprob_kwargs,sampler_kwargs=sampler_kwargs)
 
-	raise NameError
 	# Initialize Walker positions
 	pos = np.array(map(lambda x: x + x*stats.norm.rvs(0,0.05,nwalkers),p_true)).T
 
@@ -1109,12 +1107,13 @@ if __name__ == "__main__":
 
 	print_time()
 
-	time_sampler = False
+	time_sampler = True
 	if time_sampler == True:
 		print_message('...timing sampler')
 		ipython.magic("timeit -r 3 W.samp_drive(pos,step_num=1,burn_num=0)")
 
-	drive_sampler = True
+	pool.close()
+	drive_sampler = False
 	save_chains = True
 	if drive_sampler == True:
 		print_message('...driving sampler',type=1)

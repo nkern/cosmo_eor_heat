@@ -9,6 +9,7 @@ git add config_multiprog.py
 git add runjob.sh
 git add rm_boxes.py
 git add camb_run.py
+git add calc_tau.py
 
 # Ancillary Files
 git add k_range.tab

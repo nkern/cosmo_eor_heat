@@ -45,6 +45,9 @@ echo ...End Time: ${end_d[@]}
 echo "Start Time: "${start_d[@]} >> ../finish.txt
 echo "End Time  : "${end_d[@]} >> ../finish.txt
 
+# Calculate Tau
+python ../calc_tau.py
+
 # Extract Global Parameters
 python ../global_params.py
 
