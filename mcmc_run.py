@@ -174,13 +174,14 @@ if __name__ == "__main__":
 		direcs_cv = np.array(CV_data['direcs'])[np.argsort(CV_data['indices'])][rando]
 		
 		# Get Fiducial Data
-		feed_fid = False
+		feed_fid = True
 		if feed_fid == True:
-			fid_params = fiducial_data['gridf']
-			fid_data = fiducial_data['data']
+			fid_params = fiducial_data['fid_params']
+			fid_data = fiducial_data['fid_data']
 		else:
 			fid_params = np.array(map(astats.biweight_location,grid_tr.T))
-			fid_data = np.array(map(astats.biweight_location,data_tr.T))
+			fid_data = np.array([astats.biweight_location(data_tr.T[i]) if np.isnan(astats.biweight_location(data_tr.T[i])) == False \
+									else np.median(data_tr.T[i]) for i in range(len(data_tr.T))])
 			
 		globals().update(dez.create(make_globals,locals()))
 
@@ -351,8 +352,8 @@ if __name__ == "__main__":
 	z_select        = np.arange(len(z_array))
 	k_range         = np.loadtxt('k_range.tab')
 	k_select        = np.arange(len(k_range))
-	g_array         = np.array([r'nf',r'Tb'])
-	g_array_tex     = np.array([r'$\chi_{HI}$',r'$T_{b}$'])
+	g_array         = np.array([r'nf',r'Tb',r'Ts',r'Tk',r'Q',r'tau'])
+	g_array_tex     = np.array([r'$\chi_{HI}$',r'$T_{b}$',r'$T_{s}$',r'$T_{k}$',r'$Q$',r'$\tau$'])
 	g_select        = np.arange(len(g_array))
 
 	# Limit to zlimits
@@ -414,7 +415,7 @@ if __name__ == "__main__":
 			except: mock_data[n]=list(mock_data[n]);mock_data[n][i]=mock_data[n][i].T[mock_data['valid'][i]].T.ravel()
 			if n == 'sense_PSerrs':
 				# Cut out sense_PSerrs / sense_PSdata > x%
-				err_thresh = 1.0        # 200%
+				err_thresh = 1.0        # 100%
 				small_errs = np.where(mock_data['sense_PSerrs'][i] / mock_data['sense_PSdata'][i] < err_thresh)[0]
 				mock_data['sense_kbins'][i] = mock_data['sense_kbins'][i][small_errs]
 				mock_data['sense_PSdata'][i] = mock_data['sense_PSdata'][i][small_errs]
@@ -442,14 +443,14 @@ if __name__ == "__main__":
 	track_types = ['ps']
 
 	# Add other information to mock dataset
-	add_xe = True
-	if add_xe == True:
+	add_xh = True
+	if add_xh == True:
 		model_x		= np.array(map(lambda x: np.concatenate([x[0],[x[1]]]), zip(model_x,z_array)))
 		obs_x		= np.array(map(lambda x: np.concatenate([x[0],[x[1]]]), zip(obs_x,z_array)))
 		obs_y		= np.array(map(lambda x: np.concatenate([x[0],[x[1]]]), zip(obs_y,np.zeros(z_num))))
 		obs_y_errs	= np.array(map(lambda x: np.concatenate([x[0],[x[1]]]), zip(obs_y_errs,np.ones(z_num)*1e6)))
-		obs_track	= np.array(map(lambda x: np.concatenate([x[0],[x[1]]]), zip(obs_track,['xe' for i in range(z_num)])))
-		track_types += ['xe']
+		obs_track	= np.array(map(lambda x: np.concatenate([x[0],[x[1]]]), zip(obs_track,['xh' for i in range(z_num)])))
+		track_types += ['xh']
 
 	add_Tb = True
 	if add_Tb == True:
@@ -924,7 +925,7 @@ if __name__ == "__main__":
 
 		# Plot Neutral Fraction and Brightness Temperature
 		ax3b = ax3.twinx()
-		gdat = O.track(['xe','Tb'],arr=O.mat2row(E.fid_data,mat2row=False))
+		gdat = O.track(['xH','Tb'],arr=O.mat2row(E.fid_data,mat2row=False))
 		p11, = ax3.plot(z_array,gdat.T[0],color='k',linestyle='-',linewidth=2,alpha=0.75)
 		p12, = ax3b.plot(z_array,gdat.T[1],color='k',linestyle='--',linewidth=2,alpha=0.75)
 		ax3.legend([p11,p12],[r'$\langle x_{HI}\rangle$',r'$\langle\delta T_{b}\rangle$'],loc=1)
@@ -937,7 +938,7 @@ if __name__ == "__main__":
 
 		# Plot Eigenmodes
 		ax5b = ax5.twinx()
-		evecs = np.array(map(lambda x: O.track(['xe','Tb'],arr=O.mat2row(x,mat2row=False)),E.eig_vecs))
+		evecs = np.array(map(lambda x: O.track(['xH','Tb'],arr=O.mat2row(x,mat2row=False)),E.eig_vecs))
 		evecs = np.array(map(lambda x: x/map(np.max,np.abs(x.T)), evecs) )
 		p13, = ax5.plot(z_array,evecs[0].T[0],linestyle='-',color='b',linewidth=1.5,alpha=0.5)
 		p14, = ax5.plot(z_array,evecs[1].T[0],linestyle='-',color='r',linewidth=1.5,alpha=0.5)
@@ -1516,7 +1517,7 @@ if __name__ == "__main__":
 			sel = np.array(reduce(operator.mul,np.array([grid_cv.T[p]==params_fid[p] if p != i else np.ones(len(grid_cv.T[p])) for p in range(N_params)])),bool)
 			sort = np.argsort(grid_cv[sel].T[i])
 			ps_track = lambda datavec, z: datavec.reshape(z_len,y_len)[z,:k_len]
-			xe_track = lambda datavec, z: datavec.reshape(z_len,y_len)[z,-2]
+			xH_track = lambda datavec, z: datavec.reshape(z_len,y_len)[z,-2]
 			tb_track = lambda datavec, z: datavec.reshape(z_len,y_len)[z,-1]
 	
 			for j in np.concatenate([np.arange(0,spp/2)[::-1],[0]*10,np.arange(0,spp),[spp-1]*10,np.arange(spp/2,spp)[::-1],[spp/2]*5]):
@@ -1583,7 +1584,7 @@ if __name__ == "__main__":
 						ax.set_ylabel(r'$x_{HI}$',fontsize=16,labelpad=0)
 						ax.grid(True)
 						mp.tick_params(which='both',right='off',top='off')
-						ax.plot(z_array,xe_track(data_cv[sel][sort][j],np.arange(z_len)), color='b', linewidth=2)
+						ax.plot(z_array,xH_track(data_cv[sel][sort][j],np.arange(z_len)), color='b', linewidth=2)
 					# Plot Second row tb evol
 					if k == 7:
 						ax.set_xlim(6,25)
