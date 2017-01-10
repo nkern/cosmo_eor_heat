@@ -121,13 +121,13 @@ if __name__ == "__main__":
 		file.close()
 
 		# Choose Training Set
-		#TS_data = gauss_hera127_data
-		TS_data = lhs_data
+		TS_data = gauss_hera127_data
+		#TS_data = lhs_data
 
 		# Separate Data
-		#tr_len = 2000
-		tr_len = 16344
-		rando = np.random.choice(np.arange(tr_len),size=15000,replace=False)
+		tr_len = 5000
+		#tr_len = 16344
+		rando = np.random.choice(np.arange(tr_len),size=4999,replace=False)
 		rando = np.array(map(lambda x: x in rando,np.arange(tr_len)))
 
 		data_tr = TS_data['data'][np.argsort(TS_data['indices'])][rando]
@@ -138,11 +138,11 @@ if __name__ == "__main__":
 		add_other_data = False
 		if add_other_data == True:
 			# Choose Training Set
-			TS_data = gauss_hera331_data
+			TS_data = gauss_hera127_data
 
 			# Separate Data
-			tr_len = 5000
-			rando = np.random.choice(np.arange(tr_len),size=4500,replace=False)
+			tr_len = 2000
+			rando = np.random.choice(np.arange(tr_len),size=1500,replace=False)
 			rando = np.array(map(lambda x: x in rando,np.arange(tr_len)))
 
 			data_tr = np.concatenate([data_tr,TS_data['data'][np.argsort(TS_data['indices'])][rando]])
@@ -150,7 +150,7 @@ if __name__ == "__main__":
 			direcs_tr = np.concatenate([direcs_tr,TS_data['direcs'][np.argsort(TS_data['indices'])][rando]])
 
 		# Choose Cross Validation Set
-		CV_data 		= lhs_data
+		CV_data 		= gauss_hera127_data
 		no_rando		= False
 		TS_remainder	= True
 		use_remainder	= True
@@ -174,7 +174,7 @@ if __name__ == "__main__":
 		direcs_cv = np.array(CV_data['direcs'])[np.argsort(CV_data['indices'])][rando]
 		
 		# Get Fiducial Data
-		feed_fid = True
+		feed_fid = False
 		if feed_fid == True:
 			fid_params = fiducial_data['gridf']
 			fid_data = fiducial_data['data']
@@ -272,15 +272,17 @@ if __name__ == "__main__":
 	if plot_tr == True:
 		print_message('...plotting ts')
 		print_time()
-		fig = mp.figure(figsize=(15,8))
-		fig.subplots_adjust(wspace=0.3)
 
 		lims = [[None,None] for i in range(11)]
+		lims = [[grid_tr.T[i].min(), grid_tr.T[i].max()] for i in range(11)]
 
+		fig = mp.figure(figsize=(15,8))
+		fig.subplots_adjust(wspace=0.3)
 		j = 0
 		for i in range(6):
 			ax = fig.add_subplot(2,3,i+1)
 			ax.plot(grid_tr.T[j],grid_tr.T[j+1],'k,',alpha=0.75)
+			ax.plot(fid_params[j], fid_params[j+1], color='m', marker='*', markersize=15)
 			#ax.plot(grid_cv.T[j],grid_cv.T[j+1],'r.')
 			ax.set_xlim(lims[j])
 			ax.set_ylim(lims[j+1])
@@ -295,9 +297,9 @@ if __name__ == "__main__":
 		print_time()
 
 	### Variables for Emulator ###
-	N_modes = 10
+	N_modes = 15
 	N_params = len(params)
-	N_data = 660
+	N_data = 836
 	N_samples = len(data_tr)
 	poly_deg = 2
 	reg_meth='gaussian'
@@ -531,6 +533,7 @@ if __name__ == "__main__":
 	# Initialize KLT
 	E.klt(data_tr,fid_data=fid_data)
 
+	raise NameError
 	# Make new yz_data matrix
 	yz_data = []
 	for i in range(z_num):
@@ -563,8 +566,8 @@ if __name__ == "__main__":
 	noise_bounds = np.array([[1e-8,1e-3] for i in range(N_modes)])
 
 	# Insert HP into GP
-#	kernels = map(lambda x: gp.kernels.RBF(*x[:2]) + gp.kernels.WhiteKernel(*x[2:]), zip(ell,ell_bounds,noise_var,noise_bounds))
-	kernels = map(lambda x: gp.kernels.RBF(x[0],x[1]), zip(ell,ell_bounds))
+	kernels = map(lambda x: gp.kernels.RBF(*x[:2]) + gp.kernels.WhiteKernel(*x[2:]), zip(ell,ell_bounds,noise_var,noise_bounds))
+#	kernels = map(lambda x: gp.kernels.RBF(x[0],x[1]), zip(ell,ell_bounds))
 
 	if use_pca == False:
 		if trans_lnlike == False:
@@ -589,9 +592,9 @@ if __name__ == "__main__":
 	gp_kwargs_arr = np.array([dict(zip(names,[kernels[i],False,optimize,n_restarts])) for i in map(lambda x: x[0],E.modegroups)])
 
 	# Insert precomputed HP
-	load_hype = False
+	load_hype = True
 	if load_hype == True:
-		file = open('forecast_hyperparams6.pkl','rb')
+		file = open('forecast_hyperparams2.pkl','rb')
 		input = pkl.Unpickler(file)
 		hp_dict = input.load()
 		file.close()
@@ -629,22 +632,19 @@ if __name__ == "__main__":
 	param_hypervol = reduce(operator.mul,map(lambda x: x[1] - x[0], param_bounds))
 
 	use_Nmodes = None
-	add_model_err = False
-	add_overall_modeling_err = True
-	modeling_err = 0.25
-	calc_lnlike_emu_err = False
+	add_model_cov = False
+	add_overall_modeling_error = True
+	modeling_error = 0.20
 	cut_high_fracerr = 10.0
-	emu_err_mc = False
 	ndim = N_params
 	nwalkers = 100
 
 	sampler_init_kwargs = {'use_Nmodes':use_Nmodes,'param_bounds':param_bounds,'param_hypervol':param_hypervol,
 							'nwalkers':nwalkers,'ndim':ndim,'N_params':ndim,'z_num':z_num}
 
-	lnprob_kwargs = {'add_model_err':add_model_err,'fast':fast,'kwargs_tr':kwargs_tr,
-					 'calc_lnlike_emu_err':calc_lnlike_emu_err,'predict_kwargs':predict_kwargs,'LAYG':LAYG,'k':k,
-					 'emu_err_mc':emu_err_mc,'cut_high_fracerr':cut_high_fracerr,
-					 'add_overall_modeling_err':add_overall_modeling_err,'modeling_err':modeling_err}
+	lnprob_kwargs = {'add_model_cov':add_model_cov,'kwargs_tr':kwargs_tr,
+					 'predict_kwargs':predict_kwargs,'LAYG':LAYG,'k':k,
+					 'add_overall_modeling_error':add_overall_modeling_error,'modeling_error':modeling_error}
 
 	print_message('...initializing sampler')
 	S = pycape.Samp(N_params, param_bounds, Emu=E, Obs=O)
@@ -654,7 +654,7 @@ if __name__ == "__main__":
 	train_emu = True
 	if train_emu == True:
 		save_hype 		= False
-		kfold_regress	= True
+		kfold_regress	= False
 		if kfold_regress == True:
 			kfold_Nsamp = 2000
 			kfold_Nclus = 15
@@ -718,7 +718,6 @@ if __name__ == "__main__":
 			output.dump(hyp_dict)
 			f.close()
 
-	raise NameError
 	print_mem()
 	#################
 	### FUNCTIONS ###
@@ -851,7 +850,7 @@ if __name__ == "__main__":
 	plot_weight_pred	= False
 	plot_ps_pred		= False
 	plot_ps_recon_frac	= False
-	plot_ps_recon		= True
+	plot_ps_recon		= False
 
 	# Sampling
 	make_fisher			= False
