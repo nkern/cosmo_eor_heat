@@ -16,12 +16,16 @@ See Equations (6) - (9) from Liu et al. 2016
 	and then use x_HII = 0.0 for higher redshifts
 5. x_HeIII(z<3) = 1.0 and x_HeIII(z>3) = 0.0
 
+For the curve_interp module see: https://github.com/nkern/curve_interp
+
 Nicholas Kern
-December, 2016
+January, 2017
 """
 # Import Modules
 import numpy as np
 import os
+import argparse
+import sys
 import fnmatch
 from scipy.optimize import leastsq
 from scipy.integrate import trapz
@@ -31,6 +35,16 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as mp
 from matplotlib import rc
 rc('text', usetex=True)
+
+# Parse options
+parser = argparse.ArgumentParser(description='calculate tau')
+parser.add_argument('--overwrite', dest='overwrite', action='store_true', help='overwrite existing tau data if passed --overwrite') 
+args = parser.parse_args()
+overwrite = args.overwrite
+
+if os.path.isfile('../tau.tab') == True and overwrite == False:
+	print "Existing Tau data exists and not overwriting..."
+	sys.exit(0)
 
 # Define constants
 sig_T	= 6.6524e-25	# Thomson Cross Section, cgs
@@ -194,8 +208,10 @@ else:
 
 # Assign intermedite redshifts by interpolating 21cmFAST data
 avg_x_HII_1_deltab[np.where((z_arr>z[0])&(z_arr<=z[-1]))] = curve_interp(z_arr[np.where((z_arr>z[0])&(z_arr<=z[-1]))], z, avg_x_HII_1_deltab_output[:,np.newaxis], n=3, degree=2)
-avg_x_HII_1_deltab[np.where((avg_x_HII_1_deltab<0)&(z_arr>z[-1]))] = 0.0
-avg_x_HII_1_deltab[np.where((avg_x_HII_1_deltab>1)&(z_arr<z[0]))] = 1.0
+
+# Remove bad predictions
+avg_x_HII_1_deltab[np.where(avg_x_HII_1_deltab<0)] = 0.0
+avg_x_HII_1_deltab[np.where(avg_x_HII_1_deltab>1)] = 1.0
 
 # Perform Tau Integration
 tau = np.zeros(len(z_arr))
@@ -203,6 +219,9 @@ avg_ne = ne_avg(z_arr, avg_x_HII_1_deltab, avg_x_HeIII_1_deltab)
 dldz = dl_dz(z_arr)
 for i in range(len(z_arr)):
 	tau[i] = sig_T * trapz(avg_ne[:i]*dldz[:i], x=z_arr[:i], dx=dz)
+
+# Interpolate back to z
+tau_z = curve_interp(z, z_arr, tau[:,np.newaxis]).ravel()
 
 # Plot
 fig=mp.figure(figsize=(5,5))
@@ -214,8 +233,8 @@ ax1.set_ylim(-0.1,1.1)
 mp.setp(ax1.get_xticklabels(), visible=False)
 ax1.set_ylabel(r'$\langle(x_{HII}(1+\delta_{b})\rangle$',fontsize=18)
 ax1.grid(True)
-ax1.plot(z_arr,avg_x_HII_1_deltab,'k--')
-ax1.plot(z, avg_x_HII_1_deltab_output, 'bo')
+ax1.plot(z_arr,avg_x_HII_1_deltab,'k-', linewidth=1.5, alpha=0.75)
+ax1.scatter(z, avg_x_HII_1_deltab_output, edgecolor='', c='dodgerblue', s=25, alpha=0.75)
 
 ax2 = fig.add_subplot(212, sharex=ax1)
 ax2.set_xlim(0,35)
@@ -234,9 +253,9 @@ tau_z = curve_interp(z, z_arr, tau[:,np.newaxis]).ravel()
 
 # Write to file
 with open('../tau.tab', 'w') as f:
-	f.write('#z, tau \n')
+	f.write('#z, tau, avg_x_HII_1_deltab \n')
 	for i in range(len(z)):
-		f.write(str(z[i]) + '\t' + str(tau_z[i]) + '\n')
+		f.write(str(z[i]) + '\t' + str(tau_z[i]) + '\t' + str(avg_x_HII_1_deltab_output[i]) + '\n')
 
 # Append global_params.tab
 if os.path.isfile('../global_params.tab') == True:

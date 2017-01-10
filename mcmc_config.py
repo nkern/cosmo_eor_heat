@@ -39,7 +39,6 @@ warnings.filterwarnings('ignore',category=DeprecationWarning)
 
 ## Flags
 interp_ps				= True
-add_Q					= False
 calc_sense				= False
 plot_scree				= False
 plot_eigvecs_project	= False
@@ -52,9 +51,11 @@ if __name__ == "__main__":
 
 	###############################
 	## Load Training Set samples ##
-	grid = fits.open('TS_samples5.fits')[1].data
-	names = grid.names
-	grid = np.hstack([grid])
+	grid1 = fits.open('TS_samples1.fits')[1].data
+	grid2 = fits.open('TS_samples2.fits')[1].data
+	grid3 = fits.open('TS_samples7.fits')[1].data
+	names = grid1.names
+	grid = np.hstack([grid1,grid2,grid3])
 	gridf = np.array( map(lambda x: grid[x], names) ).T
 	#grid = np.array( map(lambda y: map(lambda x: "%09.5f" % x, y), gridf) )
 	grid = np.array( map(lambda y: map(lambda x: "%07.3f" % x, y), gridf) )
@@ -77,10 +78,12 @@ if __name__ == "__main__":
 	gridf	= np.array(gridf)[sort]
 
 	# Get directories that have non-empty global_params.tab
-	glob_sel = []
+	glob_sel = np.array([False for i in range(len(direcs))])
 	for i in range(len(direcs)):
 		if os.path.isfile(base_direc+direcs[i]+'/global_params.tab') and os.path.getsize(base_direc+direcs[i]+'/global_params.tab') > 1000:
-			glob_sel.append(i)
+			glob_sel[i] = True
+
+	glob_sel = np.array(glob_sel)
 
 	N_samples = len(glob_sel)-1
 	direcs	= direcs[glob_sel]
@@ -114,8 +117,9 @@ if __name__ == "__main__":
 			direcs = np.array(new_direcs)
 
 		# Use only a single directory?
-		single_direc = False
+		single_direc = True
 		if single_direc == True:
+			base_direc='param_space/'
 			direcs = ['fiducial_run']
 
 		# Iterate through directories
@@ -149,35 +153,24 @@ if __name__ == "__main__":
 			k_data = np.array(k_data)
 			ps_data = np.array(ps_data)
 			z_data = np.array(z_data)
-
 			# Get global parameter data (nf and Tb)
-			gp_z, gp_nf, gp_Tb = np.loadtxt(base_direc+direcs[i]+'/global_params.tab',unpack=True)
-			gp_data = np.vstack([gp_nf,gp_Tb]).T
-
-			# Get Q data
-			if add_Q == True:
-				Qfile = fnmatch.filter(os.listdir(base_direc+direcs[i]+'/Output_files/Ts_outs'),'global_evolution*')[0] 
-				Qz,Qdata = np.loadtxt(base_direc+direcs[i]+'/Output_files/Ts_outs/'+Qfile,usecols=(0,1),unpack=True)
-				Q_pred = curve_interp(z_array,Qz,Qdata[:,np.newaxis],n=2,degree=1).ravel()
+			names = np.loadtxt(base_direc+direcs[i]+'/global_params.tab',unpack=True,comments='',dtype=str).T[0]
+			gp_data = np.loadtxt(base_direc+direcs[i]+'/global_params.tab',unpack=True)
+			gp_z = gp_data[0]
+			gp_data = gp_data[1:].T
 
 			ps_pred = 10**curve_interp(z_array,z_data,np.log10(ps_data),n=3,degree=2,extrap_n=2,extrap_deg=1)
 			gp_pred = curve_interp(z_array,gp_z,gp_data,n=3,degree=2,extrap_n=2,extrap_deg=1)
 
 			# Write to file
 			f1 = open(base_direc+direcs[i]+'/global_params_interp.tab','w')
-			if add_Q == True: f1.write('# z, nf, Tb, Q\n')
-			else: f1.write('# z, nf, Tb\n')
+			f1.write('\t'.join(names)+'\n')
 			for j in range(len(z_array)):
-				if add_Q == True:
-					f1.write(str(z_array[j])+'\t'+str(gp_pred.T[0][j]) + '\t' + str(gp_pred.T[1][j]) + '\t' + str(Q_pred[j]) + '\n')
-				else:
-					f1.write(str(z_array[j])+'\t'+str(gp_pred.T[0][j]) + '\t' + str(gp_pred.T[1][j]) + '\n')
-
-				f2 = open(base_direc+direcs[i]+'/Output_files/Deldel_T_power_spec/ps_interp_z%06.2f.txt'%z_array[j],'w')
-				for k in range(k_data.shape[1]):
-					f2.write(str(k_data[0][k])+'\t'+str(ps_pred[j][k])+'\n')
-				f2.close()
-
+				line = str(z_array[j])+'\t'+'\t'.join( map(str, gp_pred[j]))
+				f1.write(line+'\n')
+				with open(base_direc+direcs[i]+'/Output_files/Deldel_T_power_spec/ps_interp_z%06.2f.txt'%z_array[j],'w') as f2:
+					for k in range(k_data.shape[1]):
+						f2.write(str(k_data[0][k])+'\t'+str(ps_pred[j][k])+'\n')
 			f1.close()
 
 	## Calculate Telescope Sensitivity ##
@@ -204,14 +197,9 @@ if __name__ == "__main__":
 	z_select        = np.arange(len(z_array))
 	k_range         = np.loadtxt('k_range.tab')
 	k_select        = np.arange(len(k_range))
-	if add_Q == True:
-		g_array			= np.array([r'nf',r'Tb',r'Q'])
-		g_array_tex		= np.array([r'$\chi_{HI}$',r'$T_{b}$',r'$Q$'])
-		g_select		= np.arange(len(g_array))
-	else:
-		g_array         = np.array([r'nf',r'Tb'])
-		g_array_tex     = np.array([r'$\chi_{HI}$',r'$T_{b}$'])
-		g_select        = np.arange(len(g_array))
+	g_array			= np.array([r'nf',r'Tb',r'Ts',r'Tk',r'Q',r'tau'])
+	g_array_tex		= np.array([r'$\chi_{HI}$',r'$T_{b}$',r'$T_{s}$',r'$T_{k}$',r'$Q$',r'$\tau$'])
+	g_select		= np.arange(len(g_array))
 
 	# Limit to zlimits
 	if zmin != None:
@@ -265,12 +253,9 @@ if __name__ == "__main__":
 			print '...working on direc = '+direc
 			ps_files        = np.array(sorted(fnmatch.filter(os.listdir(base_direc+direc+'/'+ps_direc),ps_keep)))
 			global_file	= base_direc+direc+'/global_params_interp.tab'
-			if add_Q == True:
-				global_data	= np.loadtxt(global_file,usecols=(1,2,3),unpack=True).T[::-1]
-			else:
-				global_data = np.loadtxt(global_file,usecols=(1,2),unpack=True).T[::-1]
+			global_data	= np.loadtxt(global_file,unpack=True)[1:].T
 			if len(global_data) != z_len: continue
-			global_data = global_data[z_select][::-1]
+			global_data = global_data[z_select]
 			sample_data = []
 			for i in range(len(ps_files)):
 				ps_data	= np.loadtxt(base_direc+direc+'/'+ps_direc+ps_files[i],delimiter='\t',usecols=(1,),unpack=True)[k_select]
@@ -314,7 +299,7 @@ if __name__ == "__main__":
 	write_data_to_file = True
 	if write_data_to_file == True:
 		diction = {'direcs':direcs,'data':data,'grid':grid,'indices':indices,'fid_data':fid_data,'fid_params':fid_params,'gridf':gridf}
-		file = open('lhs_data.pkl','wb')
+		file = open('fiducial_data.pkl','wb')
 		output = pkl.Pickler(file)
 		output.dump(diction)
 		file.close()

@@ -157,6 +157,7 @@ if __name__ == '__main__':
 			os.system('cp mcmc_params.py '+working_direc+'/')
 			os.system('cp global_params.py '+working_direc+'/')
 			os.system('cp rm_boxes.py '+working_direc+'/')
+			os.system('cp calc_tau.py '+working_direc+'/')
 
 			# Insert parameters
 			insert_params(vars_21cmFAST,working_direc)
@@ -175,15 +176,15 @@ if __name__ == '__main__':
 
 	if send_slurm_jobs == True:
 		# Assign run variables
-		Nruns       	= 3000								# Total number of simulations we need to run
-		Njobs       	= 75								# Number of different SLURM jobs to submit
+		Nruns       	= 3								# Total number of simulations we need to run
+		Njobs       	= 1								# Number of different SLURM jobs to submit
 		Nnodes      	= 1								# Number of nodes to request per job
 		tasks_per_node	= 8								# Number of tasks to run per node
 		Ntasks      	= tasks_per_node * Nnodes		# Number of individual tasks (processes) to run across all nodes
 		cpus_per_task	= 4								# Number of CPUs to allocate per task (threads)
-		Nseq        	= 5								# Number of sequential simulations to run per task
-		direc_file		= 'direcs.tab'					# File containing directories to be run
-		walltime		= '30:00:00'						# Amount of walltime for slurm job
+		Nseq        	= 1								# Number of sequential simulations to run per task
+		direc_file		= 'rerun.tab'					# File containing directories to be run
+		walltime		= '6:00:00'						# Amount of walltime for slurm job
 		base_dir		= 'param_space/gauss_hera127/'	# Base drectory
 		mem_per_cpu		= 500							# Memory in MB per cpu
 		Nstart			= 0								# Start index in directory file

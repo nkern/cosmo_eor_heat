@@ -22,11 +22,17 @@ filename = fnmatch.filter(os.listdir('../Output_files/Ts_outs'), 'global_evoluti
 zp, Q, Tk, Ts = np.loadtxt('../Output_files/Ts_outs/'+filename,dtype=float,usecols=(0,1,2,4),unpack=True)
 zp, Q, Tk, Ts = zp[::-1], Q[::-1], Tk[::-1], Ts[::-1]
 
+# Extract Tau
+try:
+	tz, tau, avg_x_HII_1_deltab = np.loadtxt('../tau.tab', unpack=True)
+except:
+	tz, tau = np.copy(zp), np.zeros(len(zp))
+
 # Write to file
 f = open('../global_params.tab','w')
-f.write('#z\t nf\t aveTb\t Ts\t Tk\t Q\n')
+f.write('#z\t nf\t aveTb\t Ts\t Tk\t Q\t tau\n')
 for i in range(len(xH_params)):
-	f.write(xH_params[i][2][1:]+'\t'+xH_params[i][3][2:]+'\t'+delta_T_params[i][11][5:]+'\t'+str(Ts[i])+'\t'+str(Tk[i])+'\t'+str(Q[i])+'\n')
+	f.write(xH_params[i][2][1:]+'\t'+xH_params[i][3][2:]+'\t'+delta_T_params[i][11][5:]+'\t'+str(Ts[i])+'\t'+str(Tk[i])+'\t'+str(Q[i])+'\t'+str(tau[i])+'\n')
 f.close()
 
 # Convert PS files to shorter name
