@@ -51,9 +51,9 @@ zmax			= None							# Upper z value for KL analysis
 gmin			= None							# Limit to global params
 gmax			= None							# Limit to global params
 
-N_samples		= 2000							# Number of samples to draw from multi-Gaussian or to use in training
-eval_samples	= np.arange(0,2000)				# Total number of samples in dataset, train + cv (excluding fiducial)
-N_train			= 2000							# Samples to train on
+N_samples		= 3000							# Number of samples to draw from multi-Gaussian or to use in training
+eval_samples	= np.arange(0,3000)				# Total number of samples in dataset, train + cv (excluding fiducial)
+N_train			= 3000							# Samples to train on
 N_cv			= 0								# Samples to cross validate on
 
 ## Organize Parameters
@@ -74,7 +74,7 @@ variables       = ['z_start','z_end','z_step','zlow','zprime','randomseed','boxl
 					'dim','HIIdim','computeRmfp','numcores','ram','use_Ts']         # Other variables to include in parameter files
 variables		= DictEZ.create(variables,globals())
 
-base_direc      = 'param_space/gauss_hera331/'                        # directory that opens up to 21cmFAST realizations
+base_direc      = 'param_space/gauss_hera127/'                        # directory that opens up to 21cmFAST realizations
 
 sim_root        = '/global/homes/n/nkern/Software/21cmFAST_v1'     # Where Home 21cmFAST directory lives
 direc_root		= '/global/cscratch1/sd/nkern/EoR/cosmo_eor_heat/mcmc'	# Where this directory lives

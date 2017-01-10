@@ -268,7 +268,7 @@ if __name__ == "__main__":
 		#direcs_cv = TS_data['direcs'][TS_data['indices']][:tr_len][~rando]
 
 	# Plot Training Set
-	plot_tr = True
+	plot_tr = False
 	if plot_tr == True:
 		print_message('...plotting ts')
 		print_time()

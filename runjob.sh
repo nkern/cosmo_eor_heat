@@ -1,10 +1,11 @@
 #!/bin/bash
-#SBATCH --partition=regular
+#SBATCH --partition=debug
 #SBATCH --nodes=1
-#SBATCH --time=4:00:00
+#SBATCH --time=30:00
 #SBATCH --job-name=runjob
 #SBATCH --output=runjob_%j.out
-#SBATCH --qos=premium
+#SBATCH --qos=normal
+#SBATCH --constraint=haswell
 
-ipython mcmc_run.py
+ipython run_tau.py
 

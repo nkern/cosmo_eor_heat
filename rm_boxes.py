@@ -5,10 +5,10 @@ import numpy as np
 import os
 import fnmatch
 
-keep_box = ['Ts_z','xH_nohalos_z','delta_T_v3_no_halos_z','Tk_zprime']
+keep_box = ['Ts_z','xH_nohalos_z','delta_T_v3_no_halos_z','Tk_zprime','updated_smoothed_deltax_z']
 z_arr = np.array(map(lambda x: "%06.2f" % x, np.around(sorted(np.loadtxt('../Output_files/Ts_outs/'+fnmatch.filter(os.listdir('../Output_files/Ts_outs'),'global_evolution*')[0],usecols=(0,))),2)))
 z_arrf = np.array(z_arr,float)
-keep_z = np.array([7.0,8.0,9.0,10.0,10.5,11.0])
+keep_z = np.array([7.0,8.0,9.0,10.0,11.0,12.0])
 closest_z = np.array(map(lambda x: z_arr[np.where(np.abs(x-z_arrf)==np.abs(x-z_arrf).min())[0][0]],keep_z))
 keep_arr = np.array(map(lambda x: [x+closest_z[i] for i in range(len(closest_z))], keep_box)).ravel()
 

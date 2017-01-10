@@ -52,11 +52,9 @@ if __name__ == "__main__":
 
 	###############################
 	## Load Training Set samples ##
-	grid = fits.open('TS_samples3.fits')[1].data
+	grid = fits.open('TS_samples5.fits')[1].data
 	names = grid.names
-	grid2 = fits.open('TS_samples4.fits')[1].data
-	grid3 = fits.open('TS_samples6.fits')[1].data
-	grid = np.hstack([grid,grid2,grid3])
+	grid = np.hstack([grid])
 	gridf = np.array( map(lambda x: grid[x], names) ).T
 	#grid = np.array( map(lambda y: map(lambda x: "%09.5f" % x, y), gridf) )
 	grid = np.array( map(lambda y: map(lambda x: "%07.3f" % x, y), gridf) )
@@ -78,10 +76,10 @@ if __name__ == "__main__":
 	grid	= np.array(grid)[sort]
 	gridf	= np.array(gridf)[sort]
 
-	# Get directories that have global_params.tab
+	# Get directories that have non-empty global_params.tab
 	glob_sel = []
 	for i in range(len(direcs)):
-		if os.path.isfile(base_direc+direcs[i]+'/global_params.tab'):
+		if os.path.isfile(base_direc+direcs[i]+'/global_params.tab') and os.path.getsize(base_direc+direcs[i]+'/global_params.tab') > 1000:
 			glob_sel.append(i)
 
 	N_samples = len(glob_sel)-1
@@ -129,6 +127,13 @@ if __name__ == "__main__":
 			ps_data = []
 			z_data = []
 			ps_files = fnmatch.filter(os.listdir(base_direc+direcs[i]+'/Output_files/Deldel_T_power_spec'),'ps_no_halos_z???.??.txt')
+			if len(ps_files) == 0:
+				os.chdir(base_direc+direcs[i]+'/Programs')
+				os.system('python ../global_params.py')
+				os.chdir('../../../..')
+			ps_files = fnmatch.filter(os.listdir(base_direc+direcs[i]+'/Output_files/Deldel_T_power_spec'),'ps_no_halos_z???.??.txt')
+			if len(ps_files) == 0:
+				continue
 			ps_files = sorted(ps_files)
 			glob_par_file = 'global_params.tab'
 			for j in range(len(ps_files)):
@@ -255,14 +260,17 @@ if __name__ == "__main__":
 	for direc in direcs:
 		ll += 1
 		if os.path.isfile(base_direc+direc+'/ps_interp_alldata.tab') == False or alldata_overwrite == True:
+			if os.path.isfile(base_direc+direc+'/global_params_interp.tab') == False: continue
 			# Load PS and global data if file w/ all the info doesn't exist
 			print '...working on direc = '+direc
 			ps_files        = np.array(sorted(fnmatch.filter(os.listdir(base_direc+direc+'/'+ps_direc),ps_keep)))
 			global_file	= base_direc+direc+'/global_params_interp.tab'
 			if add_Q == True:
-				global_data	= np.loadtxt(global_file,usecols=(1,2,3),unpack=True).T[::-1][z_select][::-1]
+				global_data	= np.loadtxt(global_file,usecols=(1,2,3),unpack=True).T[::-1]
 			else:
-				global_data = np.loadtxt(global_file,usecols=(1,2),unpack=True).T[::-1][z_select][::-1]
+				global_data = np.loadtxt(global_file,usecols=(1,2),unpack=True).T[::-1]
+			if len(global_data) != z_len: continue
+			global_data = global_data[z_select][::-1]
 			sample_data = []
 			for i in range(len(ps_files)):
 				ps_data	= np.loadtxt(base_direc+direc+'/'+ps_direc+ps_files[i],delimiter='\t',usecols=(1,),unpack=True)[k_select]
@@ -306,7 +314,7 @@ if __name__ == "__main__":
 	write_data_to_file = True
 	if write_data_to_file == True:
 		diction = {'direcs':direcs,'data':data,'grid':grid,'indices':indices,'fid_data':fid_data,'fid_params':fid_params,'gridf':gridf}
-		file = open('gauss_hera331_data.pkl','wb')
+		file = open('lhs_data.pkl','wb')
 		output = pkl.Pickler(file)
 		output.dump(diction)
 		file.close()
