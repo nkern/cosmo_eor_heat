@@ -275,6 +275,16 @@ if __name__ == "__main__":
 
 	data = np.array(data,float)
 	data[np.isnan(data)] = 0
+
+	# Assign metadata
+	metadata = np.chararray(len(data.T),itemsize=10)
+	for i in range(len(metadata)):
+		try:
+			a = float(y_data[i])
+			metadata[i] = 'ps'
+		except ValueError:
+			metadata[i] = y_data[i]
+
 	############################
 
 	## Get fiducial data, remove from samples, slice out eval_samples ##
@@ -298,7 +308,8 @@ if __name__ == "__main__":
 	## Write out data to file if desired
 	write_data_to_file = True
 	if write_data_to_file == True:
-		diction = {'direcs':direcs,'data':data,'grid':grid,'indices':indices,'fid_data':fid_data,'fid_params':fid_params,'gridf':gridf}
+		diction = {'direcs':direcs,'data':data,'grid':grid,'indices':indices,'fid_data':fid_data,'fid_params':fid_params,\
+					'gridf':gridf,'metadata':metadata}
 		file = open('fiducial_data.pkl','wb')
 		output = pkl.Pickler(file)
 		output.dump(diction)
