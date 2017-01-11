@@ -38,7 +38,7 @@ from pycape.toolbox import workspace
 warnings.filterwarnings('ignore',category=DeprecationWarning)
 
 ## Flags
-interp_ps				= True
+interp_ps				= False
 calc_sense				= False
 plot_scree				= False
 plot_eigvecs_project	= False
@@ -51,9 +51,9 @@ if __name__ == "__main__":
 
 	###############################
 	## Load Training Set samples ##
-	grid1 = fits.open('TS_samples1.fits')[1].data
-	grid2 = fits.open('TS_samples2.fits')[1].data
-	grid3 = fits.open('TS_samples7.fits')[1].data
+	grid1 = fits.open('TS_samples3.fits')[1].data
+	grid2 = fits.open('TS_samples4.fits')[1].data
+	grid3 = fits.open('TS_samples6.fits')[1].data
 	names = grid1.names
 	grid = np.hstack([grid1,grid2,grid3])
 	gridf = np.array( map(lambda x: grid[x], names) ).T
@@ -103,25 +103,24 @@ if __name__ == "__main__":
 
 	ps_interp_files = sorted(map(lambda x: 'ps_interp_z%06.2f.txt'%x,z_array))
 
-	# Interpolate redshift outputs to new redshift array
+	# Work on new direcs only?
+	new_direcs = False
+	if new_direcs == True:
+		new_direcs = []
+		for i in range(len(direcs)):
+			if len(fnmatch.filter(os.listdir(base_direc+direcs[i]+'/Output_files/Deldel_T_power_spec'),'ps_interp*')) == 0:
+				new_direcs.append(direcs[i])
+		direcs = np.array(new_direcs)
+
+	# Use only a single directory?
+	single_direc = False
+	if single_direc == True:
+		base_direc='param_space/'
+		direcs = ['fiducial_run']
+
+	# Interpolate redshift otuputs to new redshift array
 	overwrite = False
 	if interp_ps == True:
-
-		# Work on new direcs only?
-		new_direcs = False
-		if new_direcs == True:
-			new_direcs = []
-			for i in range(len(direcs)):
-				if len(fnmatch.filter(os.listdir(base_direc+direcs[i]+'/Output_files/Deldel_T_power_spec'),'ps_interp*')) == 0:
-					new_direcs.append(direcs[i])
-			direcs = np.array(new_direcs)
-
-		# Use only a single directory?
-		single_direc = True
-		if single_direc == True:
-			base_direc='param_space/'
-			direcs = ['fiducial_run']
-
 		# Iterate through directories
 		for i in range(len(direcs)):
 			if os.path.isfile(base_direc+direcs[i]+'/global_params_interp.tab') == True and overwrite == False : continue
@@ -306,11 +305,11 @@ if __name__ == "__main__":
 	#direcs	= direcs[fid_rm]
 
 	## Write out data to file if desired
-	write_data_to_file = True
+	write_data_to_file = False
 	if write_data_to_file == True:
 		diction = {'direcs':direcs,'data':data,'grid':grid,'indices':indices,'fid_data':fid_data,'fid_params':fid_params,\
 					'gridf':gridf,'metadata':metadata}
-		file = open('fiducial_data.pkl','wb')
+		file = open('cross_valid_data.pkl','wb')
 		output = pkl.Pickler(file)
 		output.dump(diction)
 		file.close()
