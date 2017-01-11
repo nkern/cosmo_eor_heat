@@ -74,7 +74,7 @@ variables       = ['z_start','z_end','z_step','zlow','zprime','randomseed','boxl
 					'dim','HIIdim','computeRmfp','numcores','ram','use_Ts']         # Other variables to include in parameter files
 variables		= DictEZ.create(variables,globals())
 
-base_direc      = 'param_space/gauss_hera127/'                        # directory that opens up to 21cmFAST realizations
+base_direc      = 'param_space/cross_valid/'                        # directory that opens up to 21cmFAST realizations
 
 sim_root        = '/global/homes/n/nkern/Software/21cmFAST_v1'     # Where Home 21cmFAST directory lives
 direc_root		= '/global/cscratch1/sd/nkern/EoR/cosmo_eor_heat/mcmc'	# Where this directory lives
