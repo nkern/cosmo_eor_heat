@@ -120,6 +120,9 @@ if __name__ == "__main__":
 		fiducial_data = pkl.Unpickler(file).load()
 		file.close()
 
+		# Choose which data to keep
+		keep_meta = ['ps','nf','Tb']
+
 		# Choose Training Set
 		TS_data = gauss_hera127_data
 		#TS_data = lhs_data
@@ -133,21 +136,31 @@ if __name__ == "__main__":
 		data_tr = TS_data['data'][np.argsort(TS_data['indices'])][rando]
 		grid_tr = TS_data[ 'gridf'][np.argsort(TS_data['indices'])][rando]
 		direcs_tr = TS_data['direcs'][np.argsort(TS_data['indices'])][rando]
+		meta_tr = TS_data['metadata']
+		keep = np.array(map(lambda x: x in keep_meta, meta_tr))
+		data_tr = data_tr.T[keep].T
 
 		# Add other datasets
 		add_other_data = False
 		if add_other_data == True:
 			# Choose Training Set
-			TS_data = gauss_hera127_data
+			TS_data = gauss_hera331_data
 
 			# Separate Data
-			tr_len = 2000
+			tr_len = 5000
 			rando = np.random.choice(np.arange(tr_len),size=1500,replace=False)
 			rando = np.array(map(lambda x: x in rando,np.arange(tr_len)))
 
-			data_tr = np.concatenate([data_tr,TS_data['data'][np.argsort(TS_data['indices'])][rando]])
-			grid_tr = np.concatenate([grid_tr,TS_data[ 'gridf'][np.argsort(TS_data['indices'])][rando]])
-			direcs_tr = np.concatenate([direcs_tr,TS_data['direcs'][np.argsort(TS_data['indices'])][rando]])
+			data_tr2 = TS_data['data'][np.argsort(TS_data['indices'])][rando]
+			grid_tr2 = TS_data[ 'gridf'][np.argsort(TS_data['indices'])][rando]
+			direcs_tr2 = TS_data['direcs'][np.argsort(TS_data['indices'])][rando]
+			meta_tr2 = TS_data['metadata']
+			keep = np.array(map(lambda x: x in keep_meta, meta_tr2))
+			data_tr2 = data_tr2.T[keep].T
+
+			data_tr = np.concatenate([data_tr,data_tr2])
+			grid_tr = np.concatenate([grid_tr,grid_tr2])
+			direcs_tr = np.concatenate([direcs_tr,direcs_tr2])
 
 		# Choose Cross Validation Set
 		CV_data 		= gauss_hera127_data
@@ -172,12 +185,18 @@ if __name__ == "__main__":
 		data_cv = CV_data['data'][np.argsort(CV_data['indices'])][rando]
 		grid_cv = CV_data[ 'gridf'][np.argsort(CV_data['indices'])][rando]
 		direcs_cv = np.array(CV_data['direcs'])[np.argsort(CV_data['indices'])][rando]
-		
+		meta_cv = CV_data['metadata']
+		keep = np.array(map(lambda x: x in keep_meta, meta_cv))
+		data_cv = data_cv.T[keep].T
+
 		# Get Fiducial Data
 		feed_fid = True
 		if feed_fid == True:
 			fid_params = fiducial_data['fid_params']
 			fid_data = fiducial_data['fid_data']
+			fid_meta = fiducial_data['metadata']
+			keep = np.array(map(lambda x: x in keep_meta, fid_meta))
+			fid_data = fid_data[keep]
 		else:
 			fid_params = np.array(map(astats.biweight_location,grid_tr.T))
 			fid_data = np.array([astats.biweight_location(data_tr.T[i]) if np.isnan(astats.biweight_location(data_tr.T[i])) == False \
@@ -352,8 +371,8 @@ if __name__ == "__main__":
 	z_select        = np.arange(len(z_array))
 	k_range         = np.loadtxt('k_range.tab')
 	k_select        = np.arange(len(k_range))
-	g_array         = np.array([r'nf',r'Tb',r'Ts',r'Tk',r'Q',r'tau'])
-	g_array_tex     = np.array([r'$\chi_{HI}$',r'$T_{b}$',r'$T_{s}$',r'$T_{k}$',r'$Q$',r'$\tau$'])
+	g_array         = np.array([r'nf',r'Tb'])
+	g_array_tex     = np.array([r'$\chi_{HI}$',r'$T_{b}$'])
 	g_select        = np.arange(len(g_array))
 
 	# Limit to zlimits
