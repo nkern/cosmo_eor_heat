@@ -118,11 +118,15 @@ if __name__ == '__main__':
 	if build_direcs == True:
 
 		# Single or multiple directories?
-		single_direc = False
+		single_direc = True
 		if single_direc == True:
-			gridf = np.array(params_fid)[:,np.newaxis].T
+			par, parbound = np.loadtxt('sample_HERA331_limits.tab',dtype='str',unpack=True)
+			parbound = np.array(parbound,float)
+			parbound /= 2.0
+
+			gridf = np.array(params_fid)[:,np.newaxis].T + parbound * 1.0
 			grid = np.array( map(lambda y: map(lambda x: "%07.3f" % x, y), gridf) )
-			direcs = ['_'.join(map(lambda x: '_'.join(x),np.array(zip(np.array(params)[[6,10]],np.array(map(lambda x: "%07.3f" % x, grid[0]))[[6,10]]))))]
+			direcs = ['_'.join(map(lambda x: '_'.join(x),np.array(zip(np.array(params)[[6,10]],np.array(map(lambda x: "%07.3f" % x, gridf[0]))[[6,10]]))))]
 
 		# Iterate over Parameters
 		N = len(grid)
@@ -170,8 +174,8 @@ if __name__ == '__main__':
 
 			# Insert PBS file
 			full_direc = direc_root+'/'+working_direc
-			os.system("sed -e 's#@@working_direc@@#"+full_direc+"#g;s#@@command@@#"+command+"#g;' < drive_21cmFAST.sh > "+working_direc+"/run_21cmFAST.sh")
-			os.system("chmod 755 "+working_direc+"/run_21cmFAST.sh")
+			os.system("sed -e 's#@@working_direc@@#"+full_direc+"#g;s#@@command@@#"+command+"#g;' < drive_21cmFAST.sh > "+working_direc+"/drive_21cmFAST.sh")
+			os.system("chmod 755 "+working_direc+"/drive_21cmFAST.sh")
 
 
 	if send_slurm_jobs == True:

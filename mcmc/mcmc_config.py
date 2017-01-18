@@ -34,11 +34,10 @@ from mpl_toolkits.mplot3d import Axes3D
 from sklearn.cluster import KMeans
 import corner
 import warnings
-from pycape.toolbox import workspace
 warnings.filterwarnings('ignore',category=DeprecationWarning)
 
 ## Flags
-interp_ps				= False
+interp_ps				= True
 calc_sense				= False
 plot_scree				= False
 plot_eigvecs_project	= False
@@ -113,10 +112,10 @@ if __name__ == "__main__":
 		direcs = np.array(new_direcs)
 
 	# Use only a single directory?
-	single_direc = False
+	single_direc = True
 	if single_direc == True:
-		base_direc='param_space/'
-		direcs = ['fiducial_run']
+		base_direc='param_space/mock_obs/'
+		direcs = ['zeta_045.000_numin_350.000']
 
 	# Interpolate redshift otuputs to new redshift array
 	overwrite = False
