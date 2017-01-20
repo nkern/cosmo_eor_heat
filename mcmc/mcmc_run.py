@@ -148,12 +148,12 @@ if __name__ == "__main__":
 		add_other_data = False
 		if add_other_data == True:
 			# Choose Training Set
-			TS_data = gauss_hera331_data
+			TS_data = gauss_hera127_data
 
 			# Separate Data
 			rd = np.random.RandomState(RandomState)
 			tr_len = 5000
-			rando = rd.choice(np.arange(tr_len),size=5000,replace=False)
+			rando = rd.choice(np.arange(tr_len),size=4500,replace=False)
 			rando = np.array(map(lambda x: x in rando,np.arange(tr_len)))
 
 			data_tr2 = TS_data['data'][np.argsort(TS_data['indices'])][rando]
@@ -500,10 +500,13 @@ if __name__ == "__main__":
 						'sense_PSdata':sense_PSdata,'sense_PSerrs':sense_PSerrs,'valid':valid,'p_true':p_true})
 		print_time()
 
-	file = open('mockObs_hera331_allz_offset.pkl','rb')
+	file = open('mockObs_hera331_allz.pkl','rb')
 	mock_data = pkl.Unpickler(file).load()
 	file.close()
-	p_true = mock_data['p_true']
+	try:
+		p_true = mock_data['p_true']
+	except:
+		p_true = np.array(params_fid)
 
 	## Configure Mock Data and Append to Obs class
 	names = ['sense_kbins','sense_PSdata','sense_PSerrs']
@@ -714,9 +717,9 @@ if __name__ == "__main__":
 	gp_kwargs_arr = np.array([dict(zip(names,[kernels[i],False,optimize,n_restarts,alpha])) for i in map(lambda x: x[0],E.modegroups)])
 
 	# Insert precomputed HP
-	load_hype = False
+	load_hype = True
 	if load_hype == True:
-		file = open('forecast_hyperparams11.pkl','rb')
+		file = open('forecast_hyperparams12.pkl','rb')
 		input = pkl.Unpickler(file)
 		hp_dict = input.load()
 		file.close()
@@ -746,7 +749,7 @@ if __name__ == "__main__":
 
 	param_width = np.array([grid_tr.T[i].max() - grid_tr.T[i].min() for i in range(N_params)])
 
-	eps = 0
+	eps = -0.2
 
 	param_bounds = np.array([[grid_tr.T[i].min()+param_width[i]*eps,grid_tr.T[i].max()-param_width[i]*eps]\
 								 for i in range(N_params)])
@@ -758,7 +761,7 @@ if __name__ == "__main__":
 	add_overall_modeling_error = True
 	modeling_error = 0.15
 	ndim = N_params
-	nwalkers = 300
+	nwalkers = 200
 
 	sampler_init_kwargs = {'use_Nmodes':use_Nmodes,'param_bounds':param_bounds,'param_hypervol':param_hypervol,
 							'nwalkers':nwalkers,'ndim':ndim,'N_params':ndim,'z_len':z_len}
@@ -766,11 +769,6 @@ if __name__ == "__main__":
 	lnprob_kwargs = {'add_model_cov':add_model_cov,'kwargs_tr':kwargs_tr,
 					 'predict_kwargs':predict_kwargs,'LAYG':LAYG,'k':k,
 					 'add_overall_modeling_error':add_overall_modeling_error,'modeling_error':modeling_error}
-
-	print_message('...initializing sampler')
-	S = pycape.Samp(N_params, param_bounds, Emu=E, Obs=O)
-	print_time()
-	print_mem()
 
 	train_emu = True
 	if train_emu == True:
@@ -791,7 +789,7 @@ if __name__ == "__main__":
 				nearest = np.argsort(distances)[:Nsamp]
 				kfold_data_tr = E.data_tr[nearest]
 				kfold_grid_tr = E.grid_tr[nearest]
-				S.E.train(kfold_data_tr,kfold_grid_tr,fid_data=E.fid_data,fid_params=E.fid_params,**kwargs_tr)			
+				E.train(kfold_data_tr,kfold_grid_tr,fid_data=E.fid_data,fid_params=E.fid_params,**kwargs_tr)			
 				return np.array(map(lambda x: [np.exp(x.kernel_.theta), x.log_marginal_likelihood_value_], E.GP))
 
 			print_message('...running kfold training')
@@ -862,7 +860,7 @@ if __name__ == "__main__":
 		# Train!
 		print_message('...training emulator')
 		print_time()
-		E.train(E.data_tr,E.grid_tr,fid_data=E.fid_data,fid_params=E.fid_params,**kwargs_tr)
+		E.train(data_tr,grid_tr,fid_data=E.fid_data,fid_params=E.fid_params,**kwargs_tr)
 		print_time()
 
 		# Print out fitted hyperparameters
@@ -886,42 +884,15 @@ if __name__ == "__main__":
 
 	print_mem()
 
-	raise NameError
+	# Initialize Ensemble Sampler
+	print_message('...initializing sampler')
+	print_time()
+	S = pycape.Samp(N_params, param_bounds, Emu=E, Obs=O)
+	print_mem()
+
 	#################
 	### FUNCTIONS ###
 	#################
-
-	def cross_validate():
-		print_message('...cross validating power spectra')
-		print_time()
-
-		## Cross Validate
-		recon = []
-		recon_err = []
-		weights = []
-		true_w = []
-		weights_err = []
-		for i in range(len(data_cv)):
-			S.lnprob(grid_cv[i],**lnprob_kwargs)
-			r = E.recon.ravel()
-			rerr = E.recon_err.ravel()
-			w = E.weights.ravel()
-			werr = E.weights_err.ravel()
-			tw = np.dot(data_cv[i]-E.fid_data,E.eig_vecs.T)
-			recon.append(r)
-			recon_err.append(rerr)
-			weights.append(w)
-			true_w.append(tw)
-			weights_err.append(werr)
-			#if i%100==0: print i
-
-		recon = np.array(recon)
-		recon_err = np.array(recon_err)
-		weights = np.array(weights)
-		true_w = np.array(true_w)
-		weights_err = np.array(weights_err)
-		print_time()
-		return recon, recon_err, weights, true_w, weights_err
 
 	def calc_errs(recon,recon_err):
 		# Get cross validated reconstruction error
@@ -938,7 +909,7 @@ if __name__ == "__main__":
 		frac_err = (recon_mat-cv_mat)/cv_mat
 		frac_err_vec = np.array(map(lambda x: np.sqrt(np.median(x**2)), ((recon-data_cv)/data_cv).T))
 		zarr_vec = O.row2mat(np.array([[z_array[i]]*len(O.xdata[i]) for i in range(z_len)]),row2mat=False)
-		frac_obserr_vec1 = np.array(map(lambda x: np.sqrt(np.median(x**2)), ((recon-data_cv)/O.yerrs).T))
+		frac_obserr_vec1 = np.array(map(lambda x: np.sqrt(astats.biweight_location(x**2)), ((recon-data_cv)/O.yerrs).T))
 		frac_obserr_vec2 = np.array(map(astats.biweight_midvariance, ((recon-data_cv)/O.yerrs).T))
 
 		names = ['err','pred_err','frac_err','frac_err_vec','zarr_vec','rms_err','rms_std_err','frac_obserr_vec1','frac_obserr_vec2']
@@ -978,7 +949,7 @@ if __name__ == "__main__":
 
 		# Plot CV error wrt HERA precision
 		ax = fig.add_subplot(333)
-		im = ax.scatter(O.x_ext,zarr_vec,c=frac_err_vec/(O.yerrs/O.ydata),marker='o',s=35,edgecolor='',alpha=0.75,cmap='nipy_spectral_r',vmin=0.01,vmax=3)
+		im = ax.scatter(O.x_ext,zarr_vec,c=frac_obserr_vec1,marker='o',s=35,edgecolor='',alpha=0.75,cmap='nipy_spectral_r',vmin=0.01,vmax=3)
 		ax.set_xscale('log')
 		ax.set_xlim(1e-1,3)
 		ax.set_ylim(4,25)
@@ -1026,6 +997,7 @@ if __name__ == "__main__":
 	add_priors			= t
 	time_sampler		= f
 	drive_sampler		= t
+	parallel_temp		= f
 	save_chains			= t
 
 	# Plotting
@@ -1123,10 +1095,26 @@ if __name__ == "__main__":
 		fig.savefig('data_compress.png',dpi=200,bbox_inches='tight')
 		mp.close()
 
+	kfold_cv = False
 	calibrate_error = True
 	add_lnlike_cov = True
 	if cross_validate_ps == True:
-		recon, recon_err, weights, true_w, weights_err = cross_validate()
+		if kfold_cv == True:
+			Nclus = 1
+			Nsamp = 200
+			rando = np.array([[False]*len(data_tr) for i in range(Nclus)])
+			for i in range(1,Nclus+1): rando[i-1][-Nsamp*(i+1):-Nsamp*i] = True
+			recon_cv, recon_err_cv, recon_grid, recon_data, rando = E.kfold_cv(grid_tr, data_tr,
+									predict_kwargs=predict_kwargs,kwargs_tr=kwargs_tr,kfold_Nclus=Nclus,kfold_Nsamp=Nsamp,rando=rando)
+			recon = recon_cv
+			recon_err = recon_err_cv
+			data_cv = recon_data
+			grid_cv = recon_grid
+		else:
+			E.cross_validate(grid_cv, data_cv, predict_kwargs=predict_kwargs)
+			recon = E.recon_cv
+			recon_err = E.recon_err_cv
+
 		calc_errs(recon,recon_err)
 		plot_cross_valid(fname='cross_validate_ps.png')
 
@@ -1141,7 +1129,7 @@ if __name__ == "__main__":
 		if add_lnlike_cov == True:
 			print_message('...adding pspec cross validated errors to lnlike covariance as weights',type=0)
 			X = recon.T-data_cv.T
-			ps_err_cov = np.inner(X,X) / len(recon)
+			ps_err_cov = np.cov(X, ddof=1)
 			lnprob_kwargs['add_lnlike_cov'] = ps_err_cov
 
 			fig = mp.figure(figsize=(5,5))
@@ -1393,21 +1381,24 @@ if __name__ == "__main__":
 	print_time()
 	# Initialize Ensemble Sampler
 	print_message('...initializing ensemble sampler')
-	print_time()
 
 	date = time.ctime()[4:].split()[:-1]
 	date = ''.join(date[:2])+'_'+re.sub(':','_',date[-1])
 	print_message('...date is '+date)
 	sampler_kwargs = {'vectorize':False}
+	ntemps = 3
 
 	#pool = pathos.multiprocessing.Pool(5) #emcee.utils.MPIPool()
 	#sampler_kwargs.update({'pool':pool})
 
-	S.emcee_init(nwalkers, ndim, S.lnprob, lnprob_kwargs=lnprob_kwargs, sampler_kwargs=sampler_kwargs)
+	S.emcee_init(nwalkers, ndim, S.lnprob, lnprob_kwargs=lnprob_kwargs, sampler_kwargs=sampler_kwargs, PT=parallel_temp, ntemps=ntemps)
 
 	# Initialize Walker positions
-	#pos = np.array(map(lambda x: x + x*stats.norm.rvs(0,0.05,nwalkers),p_true)).T
-	pos = np.copy(grid_cv[np.random.choice(np.arange(len(grid_cv)), replace=False, size=nwalkers)])
+	if parallel_temp == True:
+		pos = np.array([np.copy(grid_cv[np.random.choice(np.arange(len(grid_cv)), replace=False, size=nwalkers)]) for i in range(ntemps)])
+	else:
+		#pos = np.array(map(lambda x: x + x*stats.norm.rvs(0,0.05,nwalkers),p_true)).T
+		pos = np.copy(grid_cv[np.random.choice(np.arange(len(grid_cv)), replace=False, size=nwalkers)])
 
 
 	# Add priors (other than flat priors)
@@ -1450,8 +1441,10 @@ if __name__ == "__main__":
 		print_message('...driving sampler',type=1)
 		print_time()
 		# Drive Sampler
-		burn_num = 0
-		step_num = 800
+		burn_num	= 0
+		step_num	= 1500
+		ntemps		= 10
+
 		print_message('...driving with burn_num='+str(burn_num)+', step_num='+str(step_num),type=0)
 		S.samp_drive(pos,step_num=step_num,burn_num=burn_num)
 		chain = S.sampler.chain
@@ -1504,7 +1497,7 @@ if __name__ == "__main__":
 		fig = mp.figure(figsize=(16,8))
 		fig.subplots_adjust(wspace=0.4,hspace=0.2)
 
-		maxlag = 50
+		maxlag = 100
 		thin = 1
 		for i in range(N_params):
 			ax = fig.add_subplot(3,4,i+1)
@@ -1512,8 +1505,12 @@ if __name__ == "__main__":
 			ax.axhline(0,color='k',alpha=0.5)
 			mp.tick_params(which='both',right='off',top='off')
 			ax.set_ylabel(p_latex[i],fontsize=20)
-			series = chain[25,:,:].T[i][::thin]
-			ax.acorr(series-astats.biweight_location(series),maxlags=maxlag)
+			series = chain[179,200:,:].T[i][::thin]
+			if np.isnan(astats.biweight_location(series)) == True:
+				trend = np.median(series)
+			else:
+				trend = astats.biweight_location(series)
+			ax.acorr(series-trend,maxlags=maxlag)
 			ax.set_xlim(-0,maxlag)
 
 		fig.savefig('autocorrs_'+date+'.png',dpi=100,bbox_inches='tight')
@@ -1598,7 +1595,7 @@ if __name__ == "__main__":
 					cov = np.array([[C[i,i],C[i,j]],[C[j,i],C[j,j]]])
 					x_cent = p_true[i]
 					y_cent = p_true[j]
-					plot_kwargs = {'color':'r','linestyle':'-','linewidth':2,'alpha':0.75,'zorder':5}
+					plot_kwargs = {'color':'b','linestyle':'-','linewidth':2,'alpha':0.75,'zorder':5}
 					# Plot
 					plot_ellipse(ax=axes[i,j],x_cent=p_true[i],y_cent=p_true[j],plot_kwargs=plot_kwargs,cov=cov,mass_level=0.95)
 
