@@ -134,7 +134,7 @@ if __name__ == "__main__":
 		tr_len = 5000
 		#tr_len = 16344
 		rd = np.random.RandomState(RandomState)
-		rando = rd.choice(np.arange(tr_len),size=5000,replace=False)
+		rando = rd.choice(np.arange(tr_len),size=4500,replace=False)
 		rando = np.array(map(lambda x: x in rando,np.arange(tr_len)))
 
 		data_tr = TS_data['data'][np.argsort(TS_data['indices'])][rando]
@@ -168,10 +168,10 @@ if __name__ == "__main__":
 			direcs_tr = np.concatenate([direcs_tr,direcs_tr2])
 
 		# Choose Cross Validation Set
-		CV_data 		= cross_valid_data
+		CV_data 		= gauss_hera331_data
 		no_rando		= False
-		TS_remainder	= False
-		use_remainder	= False
+		TS_remainder	= True
+		use_remainder	= True
 
 		# Separate Data
 		if TS_remainder == True:
@@ -749,7 +749,7 @@ if __name__ == "__main__":
 
 	param_width = np.array([grid_tr.T[i].max() - grid_tr.T[i].min() for i in range(N_params)])
 
-	eps = -0.2
+	eps = -0.3
 
 	param_bounds = np.array([[grid_tr.T[i].min()+param_width[i]*eps,grid_tr.T[i].max()-param_width[i]*eps]\
 								 for i in range(N_params)])
@@ -758,10 +758,10 @@ if __name__ == "__main__":
 
 	use_Nmodes = None
 	add_model_cov = False
-	add_overall_modeling_error = True
+	add_overall_modeling_error = False
 	modeling_error = 0.15
 	ndim = N_params
-	nwalkers = 200
+	nwalkers = 300
 
 	sampler_init_kwargs = {'use_Nmodes':use_Nmodes,'param_bounds':param_bounds,'param_hypervol':param_hypervol,
 							'nwalkers':nwalkers,'ndim':ndim,'N_params':ndim,'z_len':z_len}
@@ -1099,9 +1099,10 @@ if __name__ == "__main__":
 	calibrate_error = True
 	add_lnlike_cov = True
 	if cross_validate_ps == True:
+		print_message('...cross validating power spectra')
 		if kfold_cv == True:
-			Nclus = 1
-			Nsamp = 200
+			Nclus = 10
+			Nsamp = 100
 			rando = np.array([[False]*len(data_tr) for i in range(Nclus)])
 			for i in range(1,Nclus+1): rando[i-1][-Nsamp*(i+1):-Nsamp*i] = True
 			recon_cv, recon_err_cv, recon_grid, recon_data, rando = E.kfold_cv(grid_tr, data_tr,
@@ -1151,9 +1152,9 @@ if __name__ == "__main__":
 		fig = mp.figure(figsize=(5,5))
 		ax = fig.add_subplot(111)
 		frac_err = (e_like-t_like)/t_like
-		try: patches = ax.hist(frac_err,bins=40,histtype='step',range=(-1.0,1.0),normed=True,color='b')
+		try: patches = ax.hist(frac_err,bins=80,histtype='step',range=(-0.5,0.5),normed=True,color='b')
 		except UnboundLocalError: pass
-		ax.set_xlim(-0.5,0.5)
+		ax.set_xlim(-0.3,0.3)
 		ax.set_xlabel('likelihood fractional error',fontsize=14)
 		ax.annotate(r'$\sigma = '+str(np.around(astats.biweight_midvariance(frac_err)*50,2))+'\%$',xy=(0.2,0.8),xycoords='axes fraction',fontsize=18)
 		fig.savefig('cross_validate_like.png',dpi=100,bbox_inches='tight')

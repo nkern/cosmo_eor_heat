@@ -30,13 +30,14 @@ import pyDOE
 if __name__ == '__main__':
 
 	if sample_grid == True:
-		sampler = 'gauss'
+		sampler = 'lhsfs'
 
 		# Load Sample Bound Information
-		par, parbound = np.loadtxt('sample_HERA127_limits.tab',dtype='str',unpack=True)
+		par, parbound = np.loadtxt('sample_HERA331_limits2.tab',dtype='str',unpack=True)
 		#par, parbound = np.loadtxt('sample_paramsearch_limits.tab',dtype='str',unpack=True)
 		parbound = np.array(parbound,float)
-		parbound /= 2.0
+		#parbound /= 2.0
+		parbound *= 1.5
 
 		# Draw random samples
 		if sampler == 'gauss':
@@ -55,8 +56,8 @@ if __name__ == '__main__':
 
 		elif sampler == 'lhsfs':
 			while True:
-				samples = pyDOE.lhs(11,samples=N_samples*10,criterion='maximin') - np.array([0.5 for i in range(11)])
-				R = np.sqrt(np.array(map(np.sum,samples**2)))
+				samples = pyDOE.lhs(11,samples=N_samples*2000) - np.array([0.5 for i in range(11)])
+				R = la.norm(samples,axis=1)
 				within = R < 0.5
 				if len(np.where(within==True)[0]) >= N_samples: break
 			samples = samples[within]
@@ -82,7 +83,7 @@ if __name__ == '__main__':
 			samples += params_fid
 
 		# Write out samples to new fits file
-		filename = 'TS_samples7.fits'
+		filename = 'TS_samples8.fits'
 		ts_samples = {}
 		N = len(params)
 		keys = params

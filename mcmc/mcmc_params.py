@@ -5,10 +5,10 @@ import numpy as np
 import DictEZ
 
 ## Flags
-sample_grid		= False							# Sample training set points
-compile_direcs	= False						# Turn grid data into directory names
-write_direcs	= False							# Write directory names to direcs.tab
-build_direcs	= True							# Using samples, write 21cmFAST direcs
+sample_grid		= True							# Sample training set points
+compile_direcs	= True						# Turn grid data into directory names
+write_direcs	= True							# Write directory names to direcs.tab
+build_direcs	= False							# Using samples, write 21cmFAST direcs
 make_fiducial	= False							# Make fiducial run for Observation
 send_slurm_jobs = False	                      # Send jobs to PBS scheduler
 
@@ -51,9 +51,9 @@ zmax			= None							# Upper z value for KL analysis
 gmin			= None							# Limit to global params
 gmax			= None							# Limit to global params
 
-N_samples		= 3000							# Number of samples to draw from multi-Gaussian or to use in training
-eval_samples	= np.arange(0,3000)				# Total number of samples in dataset, train + cv (excluding fiducial)
-N_train			= 3000							# Samples to train on
+N_samples		= 6000							# Number of samples to draw from multi-Gaussian or to use in training
+eval_samples	= np.arange(0,6000)				# Total number of samples in dataset, train + cv (excluding fiducial)
+N_train			= 6000							# Samples to train on
 N_cv			= 0								# Samples to cross validate on
 
 ## Organize Parameters
@@ -74,7 +74,7 @@ variables       = ['z_start','z_end','z_step','zlow','zprime','randomseed','boxl
 					'dim','HIIdim','computeRmfp','numcores','ram','use_Ts']         # Other variables to include in parameter files
 variables		= DictEZ.create(variables,globals())
 
-base_direc      = 'param_space/mock_obs/'                        # directory that opens up to 21cmFAST realizations
+base_direc      = 'param_space/lhsfs_hera331/'                        # directory that opens up to 21cmFAST realizations
 
 sim_root        = '/Users/nkern/Software/21cmFAST_v1'     # Where Home 21cmFAST directory lives
 direc_root		= '/Users/nkern/EoR/cosmo_eor_heat/mcmc'	# Where this directory lives
