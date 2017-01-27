@@ -134,7 +134,7 @@ if __name__ == "__main__":
 		tr_len = 5000
 		#tr_len = 16344
 		rd = np.random.RandomState(RandomState)
-		rando = rd.choice(np.arange(tr_len),size=4500,replace=False)
+		rando = rd.choice(np.arange(tr_len),size=5000,replace=False)
 		rando = np.array(map(lambda x: x in rando,np.arange(tr_len)))
 
 		data_tr = TS_data['data'][np.argsort(TS_data['indices'])][rando]
@@ -168,10 +168,10 @@ if __name__ == "__main__":
 			direcs_tr = np.concatenate([direcs_tr,direcs_tr2])
 
 		# Choose Cross Validation Set
-		CV_data 		= gauss_hera331_data
+		CV_data 		= cross_valid_data
 		no_rando		= False
-		TS_remainder	= True
-		use_remainder	= True
+		TS_remainder	= False
+		use_remainder	= False
 
 		# Separate Data
 		if TS_remainder == True:
@@ -749,7 +749,7 @@ if __name__ == "__main__":
 
 	param_width = np.array([grid_tr.T[i].max() - grid_tr.T[i].min() for i in range(N_params)])
 
-	eps = -0.3
+	eps = -0.5
 
 	param_bounds = np.array([[grid_tr.T[i].min()+param_width[i]*eps,grid_tr.T[i].max()-param_width[i]*eps]\
 								 for i in range(N_params)])
@@ -1095,7 +1095,7 @@ if __name__ == "__main__":
 		fig.savefig('data_compress.png',dpi=200,bbox_inches='tight')
 		mp.close()
 
-	kfold_cv = False
+	kfold_cv = True
 	calibrate_error = True
 	add_lnlike_cov = True
 	if cross_validate_ps == True:
@@ -1427,7 +1427,7 @@ if __name__ == "__main__":
 			for j in range(Nindices):
 				prior_cov[prior_indices[i],prior_indices[j]] = planck_cov[i,j] * std_multiplier**2
 		for i in range(N_params):
-			prior_cov[i,i] += 1e-12
+			prior_cov[i,i] += 1e-20
 		prior_prec = la.inv(prior_cov)            
 		for i in range(len(prior_params)):
 			S.lnprior_funcs[prior_indices[i]] = S.create_covarying_gauss_lnprior(p_true,prior_prec,\
@@ -1443,7 +1443,7 @@ if __name__ == "__main__":
 		print_time()
 		# Drive Sampler
 		burn_num	= 0
-		step_num	= 1500
+		step_num	= 3000
 		ntemps		= 10
 
 		print_message('...driving with burn_num='+str(burn_num)+', step_num='+str(step_num),type=0)
