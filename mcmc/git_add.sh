@@ -23,4 +23,5 @@ git add TS_samples*.fits
 git add mockObs_hera331_allz.pkl
 git add mockObs_hera127_allz.pkl
 git add mockObs_hera37_allz.pkl
+git add mockObs_hera331_outofbounds.pkl
 
