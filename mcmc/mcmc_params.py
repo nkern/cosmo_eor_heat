@@ -5,10 +5,10 @@ import numpy as np
 import DictEZ
 
 ## Flags
-sample_grid		= True							# Sample training set points
-compile_direcs	= True						# Turn grid data into directory names
-write_direcs	= True							# Write directory names to direcs.tab
-build_direcs	= False							# Using samples, write 21cmFAST direcs
+sample_grid		= False							# Sample training set points
+compile_direcs	= False						# Turn grid data into directory names
+write_direcs	= False							# Write directory names to direcs.tab
+build_direcs	= True							# Using samples, write 21cmFAST direcs
 make_fiducial	= False							# Make fiducial run for Observation
 send_slurm_jobs = False	                      # Send jobs to PBS scheduler
 

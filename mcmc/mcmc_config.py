@@ -34,6 +34,8 @@ from mpl_toolkits.mplot3d import Axes3D
 from sklearn.cluster import KMeans
 import corner
 import warnings
+from matplotlib import rc
+rc('text', usetex=True)
 warnings.filterwarnings('ignore',category=DeprecationWarning)
 
 ## Flags
@@ -44,6 +46,7 @@ plot_eigvecs_project	= False
 plot_constructions		= False
 plot_error_map			= False
 plot_rms_err			= False
+plot_convergence		= False
 
 ## Program
 if __name__ == "__main__":
@@ -115,7 +118,7 @@ if __name__ == "__main__":
 	single_direc = True
 	if single_direc == True:
 		base_direc='param_space/mock_obs/'
-		direcs = ['zeta_045.000_numin_350.000']
+		direcs = ['zeta_015.000_numin_350.000']
 
 	# Interpolate redshift otuputs to new redshift array
 	overwrite = False
@@ -287,8 +290,8 @@ if __name__ == "__main__":
 
 	## Get fiducial data, remove from samples, slice out eval_samples ##
 	#fid_direc = 'fiducial_run'
-	fid_params = np.loadtxt('param_space/fiducial_run/param_vals.tab',usecols=(1,))
-	fid_data = np.loadtxt('param_space/fiducial_run/ps_interp_alldata.tab',usecols=(2,))
+	#fid_params = np.loadtxt('param_space/fiducial_run/param_vals.tab',usecols=(1,))
+	#fid_data = np.loadtxt('param_space/fiducial_run/ps_interp_alldata.tab',usecols=(2,))
 	#fid_ind = np.where(direcs==fid_direc)[0][0]
 	#fid_data = data[fid_ind]
 	#fid_data = np.array(map(lambda x: np.median(x[np.where((np.isnan(x)!=True)|(x==0))]),data.T))
@@ -618,6 +621,97 @@ if __name__ == "__main__":
 		par1 = 1
 		par2 = 0
 		err_map(par1,par2)
+
+
+	if plot_convergence == True:
+		# Plot convergence
+		res_con = pkl.Unpickler(open('res_converge.pkl','rb')).load()
+		box_con = pkl.Unpickler(open('box_converge.pkl','rb')).load()
+
+		# Resolution Convergence
+		fig = mp.figure(figsize=(8,8))
+		fig.subplots_adjust(wspace=0.05, hspace=0.075)
+		colors = ['r','b','g','k','c','m']
+		data = res_con['data']
+		direcs = res_con['direcs']
+		legend = map(lambda x: r'$\Delta L='+x.split('_')[-1]+'$ Mpc', direcs)
+		sim_num=len(data)
+
+		j = -1
+		for i in range(3,38)[::4]:
+			j += 1
+			ax = fig.add_subplot('33'+str(j+1))
+			ax.grid(True)
+			ax.set_xlim(5e-2,2)
+			ax.set_ylim(1e0,1e4)
+			ax.set_xscale('log')
+			ax.set_yscale('log')
+			if j < 6: ax.set_xticklabels([])
+			if j % 3 != 0: ax.set_yticklabels([])
+#			if j % 3 == 0: ax.set_yticklabels([1e0,1e1,3e2,1e3,1e4])
+			if j == 6: ax.set_ylabel(r'$\Delta^{2}_{21}$ [mK$^{2}$]',fontsize=15)
+			if j == 6: ax.set_xlabel(r'$k$ [$h$ Mpc$^{-1}$]',fontsize=15)
+			ax.annotate(r'$z='+str(z_array[i])+'$', xy=(0.4,0.05), xycoords='axes fraction', fontsize=12)
+			plots = []
+			for k in range(sim_num):
+				d = data[k].reshape(44,len(data[k])/44,3)
+				klen = np.where(d[i].T[1]=='nf')[0][0]
+				krange = np.array(d[i].T[1][:klen],dtype=float)
+				psdat = np.array(d[i].T[2][:klen],dtype=float)
+				ax.axvspan(1e-1,1e0,color='k',alpha=0.01)
+				p, = ax.plot(krange,psdat,color=colors[k],alpha=0.8,linewidth=1)
+				plots.append(p)
+			if j == 0: ax.legend(plots,legend,loc=2,fontsize=11)
+
+		fig.savefig('res_con.png',dpi=150,bbox_inches='tight')
+		mp.close()
+
+		# Box Convergence
+        fig = mp.figure(figsize=(8,8))
+        fig.subplots_adjust(wspace=0.05, hspace=0.075)
+        colors = ['r','b','g','k','c','m']
+        data = box_con['data']
+        direcs = box_con['direcs']
+        legend = map(lambda x: r'$L='+x.split('_')[-3]+'$ Mpc', direcs)
+        sim_num=len(data)
+
+        j = -1
+        for i in range(3,38)[::4]:
+            j += 1
+            ax = fig.add_subplot('33'+str(j+1))
+            ax.grid(True)
+            ax.set_xlim(5e-2,2)
+            ax.set_ylim(1e0,1e4)
+            ax.set_xscale('log')
+            ax.set_yscale('log')
+            if j < 6: ax.set_xticklabels([])
+            if j % 3 != 0: ax.set_yticklabels([])
+            if j == 6: ax.set_ylabel(r'$\Delta^{2}_{21}$ [mK$^{2}$]',fontsize=15)
+            if j == 6: ax.set_xlabel(r'$k$ [$h$ Mpc$^{-1}$]',fontsize=15)
+            ax.annotate(r'$z='+str(z_array[i])+'$', xy=(0.4,0.05), xycoords='axes fraction', fontsize=12)
+            plots = []
+            for k in range(sim_num):
+                d = data[k].reshape(44,len(data[k])/44,3)
+                klen = np.where(d[i].T[1]=='nf')[0][0]
+                krange = np.array(d[i].T[1][:klen],dtype=float)
+                psdat = np.array(d[i].T[2][:klen],dtype=float)
+                ax.axvspan(1e-1,1e0,color='k',alpha=0.01)
+                p, = ax.plot(krange,psdat,color=colors[k],alpha=0.8,linewidth=1)
+                plots.append(p)
+            if j == 0: ax.legend(plots,legend,loc=2,fontsize=11)
+
+        fig.savefig('box_con.png',dpi=150,bbox_inches='tight')
+        mp.close()
+
+
+
+
+
+
+
+
+
+
 
 
 
