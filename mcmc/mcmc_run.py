@@ -569,9 +569,6 @@ if __name__ == "__main__":
 		ax.plot(xdata[3], ydata[3])
 
 
-
-
-
 	# Plot Training Set
 	plot_tr = True
 	if plot_tr == True:
@@ -589,7 +586,6 @@ if __name__ == "__main__":
 			ax = fig.add_subplot(2,3,i+1)
 			ax.plot(grid_tr.T[j],grid_tr.T[j+1],'k,',alpha=0.75)
 			ax.plot(p_true[j], p_true[j+1], color='m', marker='*', markersize=15)
-			ax.plot(grid[199][j],grid[199][j+1],color='c',markersize=15,marker='o',alpha=0.25)
 			#cax = ax.scatter(grid_cv.T[j],grid_cv.T[j+1],s=30,c=lnlike,cmap='spectral_r',alpha=0.75,vmin=-1000,vmax=-500)
 			ax.set_xlim(lims[j])
 			ax.set_ylim(lims[j+1])
@@ -746,7 +742,7 @@ if __name__ == "__main__":
 	gp_kwargs_arr = np.array([dict(zip(names,[kernels[i],False,optimize,n_restarts,alpha])) for i in map(lambda x: x[0],E.modegroups)])
 
 	### Load HyperParameters ###
-	load_hype = False
+	load_hype = True
 	if load_hype == True:
 		with open('forecast_hyperparams7.pkl','rb') as f:
 			input = pkl.Unpickler(f)
@@ -1032,7 +1028,7 @@ if __name__ == "__main__":
 
 	# Sampling
 	make_fisher			= f
-	add_priors			= t
+	add_priors			= f
 	time_sampler		= f
 	drive_sampler		= t
 	parallel_temp		= f
@@ -1464,7 +1460,7 @@ if __name__ == "__main__":
 	if add_priors == True:
 		print_message('...adding non-flat priors',type=0)
 		#planck_cov = np.loadtxt('base_TTTEEE_lowl_plik.covmat')[[0,1,5]].T[[0,1,5]].T
-		select_arr = np.array([5,6,0,1,4])
+		select_arr = np.array([6,7,0,1,5,3])
 		planck_cov = np.loadtxt('new_planck_cov.tab')[select_arr[:,None],select_arr]
 		std_multiplier = 1.0
 

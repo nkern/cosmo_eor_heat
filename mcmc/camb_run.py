@@ -6,9 +6,12 @@ import numpy as np
 import scipy.stats as stats
 from pycape.simulations import Drive_Camb
 from collections import OrderedDict
-from IPython import get_ipython
-ipython = get_ipython()
 from pycape import common_priors
+try:
+	from IPython import get_ipython
+	ipython = get_ipython()
+except:
+	pass
 
 def extend_dict(orig_dict,new_dict):
 	for n in new_dict.keys():
@@ -30,11 +33,11 @@ vals = [[],[],[],[],[],[],[],[]]
 data = OrderedDict(zip(params,vals))
 
 # Initialize camb
-DC = Drive_Camb({})
+DC = Drive_Camb()
 
 # Create multidimensional gaussian
 planck_mean = map(lambda x: common_priors.cmb_priors1[x],p_names)
-mgauss = stats.multivariate_normal.rvs(mean = planck_mean, cov = planck_cov, size = 5000)
+mgauss = stats.multivariate_normal.rvs(mean = planck_mean, cov = planck_cov, size = 3000)
 
 # Time a single run
 timeit = False
@@ -49,11 +52,11 @@ for i in range(len(mgauss)):
 	this_run = mgauss[i]*1.0
 	this_run[2] = this_run[2]/100.0
 	this_run[4] = np.exp(this_run[4])/1e10
+	DC.__init__()
 	DC.set_params(H0=None,**dict(zip(camb_params,this_run)))
 	extend_dict(data,DC.get_pars)
 
 data = np.array(data.values())
-
 
 # Take covariance and write to file
 cov = np.cov(data)

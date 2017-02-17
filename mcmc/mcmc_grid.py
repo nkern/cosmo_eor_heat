@@ -119,7 +119,7 @@ if __name__ == '__main__':
 	if build_direcs == True:
 
 		# Single or multiple directories?
-		single_direc = True
+		single_direc = False
 		if single_direc == True:
 			par, parbound = np.loadtxt('sample_HERA331_limits.tab',dtype='str',unpack=True)
 			parbound = np.array(parbound,float)
