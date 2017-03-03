@@ -119,14 +119,14 @@ if __name__ == '__main__':
 	if build_direcs == True:
 
 		# Single or multiple directories?
-		single_direc = False
+		single_direc = True
 		if single_direc == True:
 			par, parbound = np.loadtxt('sample_HERA331_limits.tab',dtype='str',unpack=True)
 			parbound = np.array(parbound,float)
 			parbound /= 2.0
 
 			base_direc = 'param_space/mock_obs/'
-			gridf = np.array(params_fid)[:,np.newaxis].T + parbound * 1.0
+			gridf = np.array(params_fid)[:,np.newaxis].T# + parbound * 1.0
 			grid = np.array( map(lambda y: map(lambda x: "%07.3f" % x, y), gridf) )
 			direcs = ['_'.join(map(lambda x: '_'.join(x),np.array(zip(np.array(params)[[6,10]],np.array(map(lambda x: "%07.3f" % x, gridf[0]))[[6,10]]))))]
 

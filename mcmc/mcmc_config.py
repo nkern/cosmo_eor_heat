@@ -118,7 +118,7 @@ if __name__ == "__main__":
 	single_direc = True
 	if single_direc == True:
 		base_direc='param_space/mock_obs/'
-		direcs = ['zeta_015.000_numin_350.000']
+		direcs = ['zeta_035.000_numin_325.000']
 
 	# Interpolate redshift otuputs to new redshift array
 	overwrite = False
@@ -667,13 +667,13 @@ if __name__ == "__main__":
 		mp.close()
 
 		# Box Convergence
-        fig = mp.figure(figsize=(8,8))
-        fig.subplots_adjust(wspace=0.05, hspace=0.075)
-        colors = ['r','b','g','k','c','m']
-        data = box_con['data']
-        direcs = box_con['direcs']
-        legend = map(lambda x: r'$L='+x.split('_')[-3]+'$ Mpc', direcs)
-        sim_num=len(data)
+		fig = mp.figure(figsize=(8,8))
+		fig.subplots_adjust(wspace=0.05, hspace=0.075)
+		colors = ['r','b','g','k','c','m']
+		data = box_con['data']
+		direcs = box_con['direcs']
+		legend = map(lambda x: r'$L='+x.split('_')[-3]+'$ Mpc', direcs)
+		sim_num=len(data)
 
         j = -1
         for i in range(3,38)[::4]:

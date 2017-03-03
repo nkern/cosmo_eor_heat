@@ -64,7 +64,7 @@ params_fid      = [sigma8,hlittle,OMbh2,OMch2,ns,
 					Tvir,zeta,Rmfp,fX,aX,numin]								# Fiducial values
 params_prefix   = map(lambda x: x +"_",params)          					# Strings to create directories etc.
 p_latex         = ['$\sigma_{8}$','$h$','$\Omega_{b}h^{2}$',
-					'$\Omega_{c}h^{2}$','$n_{s}$','$T_{vir}$','$\zeta$',
+					'$\Omega_{c}h^{2}$','$n_{s}$','$T^{min}_{vir}$','$\zeta$',
 					'$R_{mfp}$','$f_{X}$','$\\alpha_{X}$','$\\nu_{min}$']		# params list but in LaTeX
 p_fid_latex		= ['$\sigma_{8}^{fid}$','$h^{fid}$','$\Omega_{b}h^{2}^{fid}$',
                     '$\Omega_{c}h^{2}^{fid}$','$n_{s}^{fid}$','$T_{vir}^{fid}$','$\zeta^{fid}$',
