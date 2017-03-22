@@ -37,7 +37,6 @@ if __name__ == '__main__':
 		#par, parbound = np.loadtxt('sample_paramsearch_limits.tab',dtype='str',unpack=True)
 		parbound = np.array(parbound,float)
 		#parbound /= 2.0
-		parbound *= 1.5
 
 		# Draw random samples
 		if sampler == 'gauss':
@@ -121,12 +120,15 @@ if __name__ == '__main__':
 		# Single or multiple directories?
 		single_direc = True
 		if single_direc == True:
-			par, parbound = np.loadtxt('sample_HERA331_limits.tab',dtype='str',unpack=True)
-			parbound = np.array(parbound,float)
-			parbound /= 2.0
+			#par, parbound = np.loadtxt('sample_HERA331_limits.tab',dtype='str',unpack=True)
+			#parbound = np.array(parbound,float)
+			#parbound /= 2.0
 
 			base_direc = 'param_space/mock_obs/'
-			gridf = np.array(params_fid)[:,np.newaxis].T# + parbound * 1.0
+			gridf = np.array(params_fid)[:,np.newaxis].T # + parbound * 1.0
+			additive = np.zeros(len(params))
+			additive[[6,8]] = np.array([-18.0, 0.8]) * 1.25
+			gridf += additive
 			grid = np.array( map(lambda y: map(lambda x: "%07.3f" % x, y), gridf) )
 			direcs = ['_'.join(map(lambda x: '_'.join(x),np.array(zip(np.array(params)[[6,10]],np.array(map(lambda x: "%07.3f" % x, gridf[0]))[[6,10]]))))]
 
