@@ -155,7 +155,7 @@ if __name__ == "__main__":
 			# Separate Data
 			rd = np.random.RandomState(RandomState)
 			tr_len = 5000
-			rando = rd.choice(np.arange(tr_len),size=5000,replace=False)
+			rando = rd.choice(np.arange(tr_len),size=3000,replace=False)
 			rando = np.array(map(lambda x: x in rando,np.arange(tr_len)))
 
 			tr_name += '/'+TS_data['name']
@@ -179,7 +179,7 @@ if __name__ == "__main__":
 			# Separate Data
 			rd = np.random.RandomState(RandomState)
 			tr_len = 5000
-			rando = rd.choice(np.arange(tr_len),size=4900,replace=False)
+			rando = rd.choice(np.arange(tr_len),size=4500,replace=False)
 			rando = np.array(map(lambda x: x in rando,np.arange(tr_len)))
 
 			tr_name += '/'+TS_data['name']
@@ -677,8 +677,8 @@ if __name__ == "__main__":
 	print_time()
 
 	# First interpolate onto observational redshift basis #
-	redshift_interp = False
-	if redshift_interp == True:
+	interp_z = False
+	if interp_z == True:
 		# select out ps
 		def z_interp(data):
 			ps_select = np.array([[True if i < data_klen else False for i in range(data_ylen)] for j in range(data_zlen)]).ravel()
@@ -699,8 +699,8 @@ if __name__ == "__main__":
 		fid_data = z_interp(fid_data[np.newaxis,:]).ravel()
 
 	# Second Interpolate P Spec onto observational k-mode basis #
-	ps_interp = True
-	if ps_interp == True:
+	interp_ps = True
+	if interp_ps == True:
 		def ps_interp(data, logps=True):
 			# select out ps and other data
 			ps_select = np.array([[True if i < data_klen else False for i in range(data_ylen)] for j in range(data_zlen)]).ravel()
@@ -883,7 +883,7 @@ if __name__ == "__main__":
 
 	param_width = np.array([grid_tr.T[i].max() - grid_tr.T[i].min() for i in range(N_params)])
 
-	eps = -0.1
+	eps = -0.0001
 
 	param_bounds = np.array([[grid_tr.T[i].min()+param_width[i]*eps,grid_tr.T[i].max()-param_width[i]*eps]\
 								 for i in range(N_params)])
@@ -892,17 +892,14 @@ if __name__ == "__main__":
 
 	use_Nmodes = None
 	add_model_cov = False
-	add_overall_modeling_error = False
-	modeling_error = 0.15
 	ndim = N_params
-	nwalkers = 200
-	vectorize_predict = False
+	nwalkers = 250
+	vectorize_predict = True
 
 	sampler_init_kwargs = {'use_Nmodes':use_Nmodes,'param_bounds':param_bounds,'param_hypervol':param_hypervol,
 							'nwalkers':nwalkers,'ndim':ndim,'N_params':ndim,'z_len':z_len}
 
 	lnprob_kwargs = {'add_model_cov':add_model_cov,'predict_kwargs':predict_kwargs,'LAYG':LAYG,'k':k,
-					 'add_overall_modeling_error':add_overall_modeling_error,'modeling_error':modeling_error,
 					 'vectorize':vectorize_predict}
 
 	train_emu = True
@@ -1438,7 +1435,7 @@ if __name__ == "__main__":
 			print_message('...adding pspec cross validated errors to lnlike covariance as weights',type=0)
 			X = recon.T-data_cv.T
 			ps_err_cov = cov_est(X)
-			lnprob_kwargs['add_lnlike_cov'] = np.abs(np.eye(len(X))*np.array(map(astats.biweight_location,X)))**2 + ps_err_cov
+			O.cov += np.abs(np.eye(len(X))*np.array(map(astats.biweight_location,X)))**2 + ps_err_cov
 
 			fig = mp.figure(figsize=(6,4))
 			fig.subplots_adjust(wspace=0.05,hspace=0.05)
@@ -1743,7 +1740,7 @@ if __name__ == "__main__":
 	print_message('...initializing ensemble sampler')
 
 	print_message('...date is '+date)
-	sampler_kwargs = {'vectorize':False}
+	sampler_kwargs = {'vectorize':True}
 	ntemps = 3
 
 	#pool = pathos.multiprocessing.Pool(5) #emcee.utils.MPIPool()
