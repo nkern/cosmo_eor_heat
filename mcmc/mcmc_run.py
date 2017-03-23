@@ -819,7 +819,7 @@ if __name__ == "__main__":
 	load_obs	= True
 	new_tr		= False
 	if load_hype == True:
-		hp_fname = 'forecast_hyperparams30.pkl'
+		hp_fname = 'forecast_hyperparams31.pkl'
 		with open(hp_fname,'rb') as f:
 			print("...loading previous hyperparameter file: "+hp_fname)
 			input = pkl.Unpickler(f)
@@ -856,11 +856,11 @@ if __name__ == "__main__":
 		if new_tr == True:
 			print_message('...using new training set')
 			draw_data()
-			if redshift_interp == True:
+			if interp_z == True:
 				data_tr = z_interp(data_tr)
 				data_cv = z_interp(data_cv)
 				data_od = np.array(map(lambda x: z_interp(x), data_od))
-			if ps_interp == True:
+			if interp_ps == True:
 				data_tr     = ps_interp(data_tr)
 				data_cv     = ps_interp(data_cv)
 				data_od     = np.array(map(lambda x: ps_interp(x), data_od))
@@ -868,9 +868,10 @@ if __name__ == "__main__":
 			N_samples	= len(data_tr)
 			fid_data	= E.fid_data
 			fid_params	= E.fid_params
-			Xsph		= np.dot(E.invL, (grid_tr-E.fid_params).T).T	
-			E.create_tree(Xsph)
-			E.update(dez.create(['grid_tr','data_tr','Xsph'], locals()))
+
+		Xsph		= np.dot(E.invL, (grid_tr-E.fid_params).T).T	
+		E.create_tree(Xsph)
+		E.update(dez.create(['grid_tr','data_tr','Xsph'], locals()))
 
 	# Create training kwargs
 	kwargs_tr = {'use_pca':use_pca,'norotate':norotate,
@@ -1155,7 +1156,7 @@ if __name__ == "__main__":
 		cmap = cmap.from_list('Custom cmap', cmaplist, cmap.N)
 		bounds = np.linspace(0,20,21)
 		norm = matplotlib.colors.BoundaryNorm(bounds, cmap.N)
-		im = ax.scatter(O.x_ext,zarr_vec,c=exp_log_frac_err_sc_vec*100,marker='o',s=45,edgecolor='',alpha=0.75, cmap=cmap, norm=norm)
+		im = ax.scatter(O.x_ext,zarr_vec,c=exp_log_frac_err_sc_vec*100,marker='o',s=30,edgecolor='',alpha=0.75, cmap=cmap, norm=norm)
 		ax.set_xscale('log')
 		ax.set_xlim(0.08,3)
 		ax.set_ylim(4,25)
@@ -1172,7 +1173,7 @@ if __name__ == "__main__":
 		cmap = cmap.from_list('Custom cmap', cmaplist, cmap.N)
 		bounds = np.linspace(0,2,21)
 		norm = matplotlib.colors.BoundaryNorm(bounds, cmap.N)
-		im = ax.scatter(O.x_ext,zarr_vec,c=std_obserr_sc_vec,marker='o',s=45,edgecolor='',alpha=0.75, cmap=cmap, norm=norm)
+		im = ax.scatter(O.x_ext,zarr_vec,c=std_obserr_sc_vec,marker='o',s=30,edgecolor='',alpha=0.75, cmap=cmap, norm=norm)
 		ax.set_xscale('log')
 		ax.set_xlim(0.08,3)
 		ax.set_ylim(4,25)
@@ -1388,7 +1389,7 @@ if __name__ == "__main__":
 		data_cv = np.copy(data_tr)[within[rando]]
 		grid_cv = np.copy(grid_tr)[within[rando]]
 
-	limit_cv_range = True
+	limit_cv_range = False
 	if limit_cv_range == True:
 		grid_cv_sph = np.dot(E.invL, (grid_cv-E.fid_params).T).T
 		within_r = np.where(np.array(map(la.norm, grid_cv_sph))<3)[0]
@@ -1401,12 +1402,22 @@ if __name__ == "__main__":
 	if cross_validate_ps == True:
 		print_message('...cross validating power spectra')
 		if kfold_cv == True:
-			Nclus = 1
+			limit_range = True
+			Nclus = 5
 			Nsamp = 1000
-			rando = np.array([[False]*len(data_tr) for i in range(Nclus)])
-			rand_samp = np.random.choice(np.arange(len(data_tr)), replace=False, size=Nclus*Nsamp).reshape(Nclus,Nsamp)
-			for i in range(Nclus): rando[i][rand_samp[i]] = True
-			#for i in range(1,Nclus+1): rando[i-1][-Nsamp*(i+1):-Nsamp*i] = True
+			if limit_range == True:
+				within = np.where(np.array(map(la.norm,E.Xsph)) < 3.0)[0]
+				Nclus_avail = len(within) / Nsamp
+				rando = np.array([[False]*len(data_tr) for i in range(Nclus_avail)])
+				rand_samp = within[np.random.choice(np.arange(len(within)), replace=False, size=Nsamp*Nclus_avail)].reshape(Nclus_avail, Nsamp)[:Nclus, :]
+			else:
+				Nclus_avail = len(data_tr) / Nsamp
+				rando = np.array([[False]*len(data_tr) for i in range(Nclus_avail)])
+				rand_samp = np.random.choice(np.arange(len(data_tr)), replace=False, size=Nclus_avail*Nsamp).reshape(Nclus_avail,Nsamp)[:Nclus, :]
+
+			for i in range(len(rando)):
+				rando[i][rand_samp[i]] = True
+
 			recon_cv, recon_err_cv, recon_grid, recon_data, rando = E.kfold_cv(grid_tr, data_tr,
 									predict_kwargs=predict_kwargs,kwargs_tr=kwargs_tr,kfold_Nclus=Nclus,kfold_Nsamp=Nsamp,rando=rando)
 			recon = recon_cv
