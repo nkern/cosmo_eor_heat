@@ -810,16 +810,16 @@ if __name__ == "__main__":
 
 	names       = ['kernel','copy_X_train','optimizer','n_restarts_optimizer','alpha']
 	optimize    = 'fmin_l_bfgs_b'
-	n_restarts  = np.array(np.linspace(0,0,E.N_modes),int)
+	n_restarts  = np.array(np.linspace(15,5,E.N_modes),int)
 	alpha		= 1e-8
 	gp_kwargs_arr = np.array([dict(zip(names,[kernels[i],False,optimize,n_restarts[i],alpha])) for i in map(lambda x: x[0],E.modegroups)])
 
 	### Load HyperParameters ###
 	load_hype	= True
 	load_obs	= True
-	new_tr		= False
+	new_tr		= True
 	if load_hype == True:
-		hp_fname = 'forecast_hyperparams31.pkl'
+		hp_fname = 'forecast_hyperparams30.pkl'
 		with open(hp_fname,'rb') as f:
 			print("...loading previous hyperparameter file: "+hp_fname)
 			input = pkl.Unpickler(f)
@@ -1396,15 +1396,15 @@ if __name__ == "__main__":
 		data_cv = data_cv[within_r]
 		grid_cv = grid_cv[within_r]
 
-	kfold_cv = False
+	kfold_cv = True
 	calibrate = True
 	add_lnlike_cov = True
 	if cross_validate_ps == True:
 		print_message('...cross validating power spectra')
 		if kfold_cv == True:
 			limit_range = True
-			Nclus = 5
-			Nsamp = 1000
+			Nclus = 1
+			Nsamp = 500
 			if limit_range == True:
 				within = np.where(np.array(map(la.norm,E.Xsph)) < 3.0)[0]
 				Nclus_avail = len(within) / Nsamp
@@ -1415,6 +1415,7 @@ if __name__ == "__main__":
 				rando = np.array([[False]*len(data_tr) for i in range(Nclus_avail)])
 				rand_samp = np.random.choice(np.arange(len(data_tr)), replace=False, size=Nclus_avail*Nsamp).reshape(Nclus_avail,Nsamp)[:Nclus, :]
 
+			rando = rando[:Nclus]
 			for i in range(len(rando)):
 				rando[i][rand_samp[i]] = True
 
