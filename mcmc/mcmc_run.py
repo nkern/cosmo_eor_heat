@@ -128,14 +128,14 @@ if __name__ == "__main__":
 		RandomState = 1
 
 		# Choose Training Set
-		TS_data = lhsfs_hera331_data
+		TS_data = lhs_data
 		#TS_data = lhs_data
 
 		# Separate Data
-		tr_len = 582
-		#tr_len = 16344
+		#tr_len = 582
+		tr_len = 16344
 		rd = np.random.RandomState(RandomState)
-		rando = rd.choice(np.arange(tr_len),size=500,replace=False)
+		rando = rd.choice(np.arange(tr_len),size=16300,replace=False)
 		rando = np.array(map(lambda x: x in rando,np.arange(tr_len)))
 
 		tr_name = TS_data['name']
@@ -147,7 +147,7 @@ if __name__ == "__main__":
 		data_tr = data_tr.T[keep].T
 
 		# Add other datasets
-		add_other_data = True
+		add_other_data = False
 		if add_other_data == True:
 			# Choose Training Set
 			TS_data = gauss_hera127_data
@@ -155,7 +155,7 @@ if __name__ == "__main__":
 			# Separate Data
 			rd = np.random.RandomState(RandomState)
 			tr_len = 5000
-			rando = rd.choice(np.arange(tr_len),size=3000,replace=False)
+			rando = rd.choice(np.arange(tr_len),size=2000,replace=False)
 			rando = np.array(map(lambda x: x in rando,np.arange(tr_len)))
 
 			tr_name += '/'+TS_data['name']
@@ -171,7 +171,7 @@ if __name__ == "__main__":
 			direcs_tr = np.concatenate([direcs_tr,direcs_tr2])
 
 		# Add other datasets
-		add_other_data = True
+		add_other_data = False
 		if add_other_data == True:
 			# Choose Training Set
 			TS_data = gauss_hera331_data
@@ -179,7 +179,7 @@ if __name__ == "__main__":
 			# Separate Data
 			rd = np.random.RandomState(RandomState)
 			tr_len = 5000
-			rando = rd.choice(np.arange(tr_len),size=4500,replace=False)
+			rando = rd.choice(np.arange(tr_len),size=3500,replace=False)
 			rando = np.array(map(lambda x: x in rando,np.arange(tr_len)))
 
 			tr_name += '/'+TS_data['name']
@@ -197,9 +197,9 @@ if __name__ == "__main__":
 		print "...added training set: "+tr_name+" of length: "+str(len(data_tr))
 
 		# Choose Cross Validation Set
-		CV_data 		= gauss_hera331_data
-		TS_remainder	= True
-		use_remainder	= True
+		CV_data 		= cross_valid_data
+		TS_remainder	= False
+		use_remainder	= False
 
 		# Separate Data
 		if TS_remainder == True:
@@ -208,7 +208,7 @@ if __name__ == "__main__":
 			else:
 				remainder = np.where(rando==False)[0]
 				rando = np.array([False for i in range(tr_len)])
-				rando[np.random.choice(remainder,size=500,replace=False)] = True
+				rando[np.random.choice(remainder,size=1000,replace=False)] = True
 			
 		else:
 			tr_len = 550
@@ -343,7 +343,7 @@ if __name__ == "__main__":
 
 
 	### Variables for Emulator ###
-	N_modes = 30
+	N_modes = 40
 	N_params = len(params)
 	N_data = 660
 	N_samples = len(data_tr)
@@ -356,7 +356,7 @@ if __name__ == "__main__":
 	scale_by_std = True
 	scale_by_obs_errs = False
 	scale_by_davg_ov_yerr = True
-	davg_maxscale = 10
+	davg_maxscale = 3
 	norotate = True
 	cov_est = lambda x: biweight_midcovariance(x)
 	cov_est_name = 'biweight_midcovariance'
@@ -639,7 +639,6 @@ if __name__ == "__main__":
 		mp.close()
 		print_time()
 
-
 	# Plot Training Set
 	plot_tr = True
 	if plot_tr == True:
@@ -771,13 +770,13 @@ if __name__ == "__main__":
 	print_message('...configuring emulator and sampler')
 	print_time()
 	print_mem()
-	k = 25
+	k = 80
 	use_pca = True
-	emode_variance_div = 1.0
+	emode_variance_div = 2.0
 	fast = True
 	compute_klt = False
 	save_chol = False
-	LAYG = False
+	LAYG = True
 
 	# First Guess of GP Hyperparameters
 	ell = np.array([[5.0 for i in range(N_params)] for i in range(N_modes)]) / np.linspace(1.0,2.0,N_modes).reshape(N_modes,1)
@@ -810,16 +809,17 @@ if __name__ == "__main__":
 
 	names       = ['kernel','copy_X_train','optimizer','n_restarts_optimizer','alpha']
 	optimize    = 'fmin_l_bfgs_b'
-	n_restarts  = np.array(np.linspace(15,5,E.N_modes),int)
+	n_restarts  = np.array(np.linspace(0,0,E.N_modes),int)
 	alpha		= 1e-8
 	gp_kwargs_arr = np.array([dict(zip(names,[kernels[i],False,optimize,n_restarts[i],alpha])) for i in map(lambda x: x[0],E.modegroups)])
 
 	### Load HyperParameters ###
-	load_hype	= True
+	load_hype	= False
 	load_obs	= True
-	new_tr		= True
+	new_tr		= False
 	if load_hype == True:
-		hp_fname = 'forecast_hyperparams30.pkl'
+	#	hp_fname = 'forecast_hyperparams30.pkl'
+		hp_fname = 'hypersolve_1D.pkl'
 		with open(hp_fname,'rb') as f:
 			print("...loading previous hyperparameter file: "+hp_fname)
 			input = pkl.Unpickler(f)
@@ -894,8 +894,8 @@ if __name__ == "__main__":
 	use_Nmodes = None
 	add_model_cov = False
 	ndim = N_params
-	nwalkers = 250
-	vectorize_predict = True
+	nwalkers = 300
+	vectorize_predict = False
 
 	sampler_init_kwargs = {'use_Nmodes':use_Nmodes,'param_bounds':param_bounds,'param_hypervol':param_hypervol,
 							'nwalkers':nwalkers,'ndim':ndim,'N_params':ndim,'z_len':z_len}
@@ -907,7 +907,7 @@ if __name__ == "__main__":
 	if train_emu == True:
 		save_hype		= False
 		kfold_regress	= False
-		hypersolve_1D	= False
+		hypersolve_1D	= True
 		SoD				= False
 		hyper_filename	= None
 		if kfold_regress == True:
@@ -957,7 +957,7 @@ if __name__ == "__main__":
 			print_time()
 			bounds = [0.1, 100]
 			kernel = gp.kernels.RBF(length_scale=10.0, length_scale_bounds=(bounds[0], bounds[1]))
-			ell = E.hypersolve_1D(grid_od, data_od, kernel=kernel, n_restarts=10, alpha=1e-6)
+			ell = E.hypersolve_1D(grid_od, data_od, kernel=kernel, n_restarts=15, alpha=1e-6)
 			kernels = np.array([gp.kernels.RBF(length_scale=ell[i], length_scale_bounds=(bounds[0],bounds[1])) for i in range(len(ell))])
 			names       = ['kernel','copy_X_train','optimizer','n_restarts_optimizer','alpha']
 			optimize    = None #'fmin_l_bfgs_b'
@@ -997,7 +997,7 @@ if __name__ == "__main__":
 		# Train!
 		print_message('...training emulator')
 		print_time()
-		E.train(data_tr,grid_tr,fid_data=E.fid_data,fid_params=E.fid_params,**kwargs_tr)
+		E.train(data_tr[:k],grid_tr[:k],fid_data=E.fid_data,fid_params=E.fid_params,**kwargs_tr)
 		print_time()
 
 		# Print out fitted hyperparameters
@@ -1045,7 +1045,7 @@ if __name__ == "__main__":
 	### FUNCTIONS ###
 	#################
 
-	def calc_errs(recon,recon_err):
+	def calc_errs(recon, recon_err, sc_sig=4.0):
 		# Get cross validated reconstruction error
 		frac_err = (recon-data_cv)/data_cv
 		log_frac_err = np.log(recon/data_cv)
@@ -1057,12 +1057,12 @@ if __name__ == "__main__":
 		zarr_vec = O.row2mat(np.array([[z_array[i]]*len(O.xdata[i]) for i in range(z_len)]),row2mat=False)
 		frac_err_vec = np.array(map(lambda x: astats.biweight_midvariance(x), frac_err.T))
 		log_frac_err_vec = np.array(map(lambda x: astats.biweight_midvariance(x), log_frac_err.T))
-		log_frac_err_sc_vec = np.array(map(lambda x: astats.biweight_midvariance(stats.sigmaclip(x,low=2.5,high=2.5)[0]), log_frac_err.T))
+		log_frac_err_sc_vec = np.array(map(lambda x: astats.biweight_midvariance(stats.sigmaclip(x,low=sc_sig,high=sc_sig)[0]), log_frac_err.T))
 		exp_log_frac_err_vec = np.sqrt(np.exp(log_frac_err_vec**2)**2 - np.exp(log_frac_err_vec**2))
 		exp_log_frac_err_sc_vec = np.sqrt(np.exp(log_frac_err_sc_vec**2)**2 - np.exp(log_frac_err_sc_vec**2))
 		std_obserr_vec = np.array(map(lambda x: astats.biweight_midvariance(x), frac_yerr.T))
-		frac_err_sc_vec = np.array(map(lambda x: astats.biweight_midvariance(stats.sigmaclip(x,low=2.5,high=2.5)[0]), frac_err.T))
-		std_obserr_sc_vec = np.array(map(lambda x: astats.biweight_midvariance(stats.sigmaclip(x,low=2.5,high=2.5)[0]), frac_yerr.T))
+		frac_err_sc_vec = np.array(map(lambda x: astats.biweight_midvariance(stats.sigmaclip(x,low=sc_sig,high=sc_sig)[0]), frac_err.T))
+		std_obserr_sc_vec = np.array(map(lambda x: astats.biweight_midvariance(stats.sigmaclip(x,low=sc_sig,high=sc_sig)[0]), frac_yerr.T))
 
 		names = ['frac_err','log_frac_err','pred_frac_err','std_err','log_std_err','frac_yerr',
 				'frac_err_vec','zarr_vec','std_obserr_vec','frac_err_sc_vec','std_obserr_sc_vec',
@@ -1297,94 +1297,41 @@ if __name__ == "__main__":
 
 	if plot_eigenmodes == True:
 		# Plot first few eigenmodes and scree plot
-		gs = gridspec.GridSpec(3,2)
-		fig = mp.figure(figsize=(9,12))
-		fig.subplots_adjust(wspace=0.3,hspace=0.3)
-		ax1 = fig.add_subplot(gs[0,:])
-		ax2 = fig.add_subplot(gs[1,0])
-		ax3 = fig.add_subplot(gs[1,1])
-		ax4 = fig.add_subplot(gs[2,0])
-		ax5 = fig.add_subplot(gs[2,1])
+		fig = mp.figure(figsize=(4,8))
+		fig.subplots_adjust(hspace=0.5, wspace=0.1)
 
-		# Make Scree Plot
-		ax1.grid(True,which='major')
-		ax1.set_yscale('log')
-		ax1.scatter(np.arange(2,len(E.eig_vals))+1,E.eig_vals[2:],facecolor='k',s=40,marker='o',edgecolor='',alpha=0.75)
-		ax1.scatter([1],E.eig_vals[0],facecolor='b',marker='o',s=50,edgecolor='',alpha=0.75)
-		ax1.scatter([2],E.eig_vals[1],facecolor='r',marker='o',s=50,edgecolor='',alpha=0.75)
-		#ax1.scatter([3],E.eig_vals[2],facecolor='r',marker='o',s=40,edgecolor='',alpha=0.75)
-		ax1.set_xlim(0,len(E.eig_vals))
-		ax1.set_xlabel(r'Eigenmode \#',fontsize=16)
-		ax1.set_ylabel(r'Eigenvalue',fontsize=16)
-		ax1.annotate(r'HERA Forecast Training Set',fontsize=14,xy=(0.61,0.73),xycoords='axes fraction')
+		# Scree
+		ax = fig.add_subplot(4,1,1)
+		ax.grid(True)
+		ax.scatter(np.arange(1,30.5,1), E.eig_vals[:30], c='k', marker='o', s=30)
+		ax.set_yscale('log')
+		ax.set_xlim(0,31)
+		ax.set_xlabel(r'eigenmode number', fontsize=15)
+		ax.set_ylabel(r'eigenvalue', fontsize=15)
 
-		# Plot power spectra at 4 redshifts
-		z1,z2,z3 = 5, 13, 19
-		ax2.grid(True)
-		ax2.set_xscale('log')
-		ax2.set_yscale('log')
-		kbins = O.track(['ps'],arr=O.xdata)
-		fdat = O.track(['ps'],arr=O.row2mat(E.fid_data))
-		p0, = ax2.plot(kbins[z1],fdat[z1],linestyle='-',linewidth=2,color='k',alpha=0.75)
-		p1, = ax2.plot(kbins[z2],fdat[z2],linestyle='--',linewidth=2,color='k',alpha=0.75)
-		p2, = ax2.plot(kbins[z3],fdat[z3],linestyle=':',linewidth=2,color='k',alpha=0.75)
-		ax2.legend([p0,p1,p2],[r'$z=8.0$',r'$z=12.0$',r'$z=15.0$'],loc=2)
-		ax2.set_xlim(1e-1,4)
-		ax2.set_ylim(8,2e4)
-		ax2.set_xlabel(r'$k$ ($h$ Mpc$^{-1}$)',fontsize=15)
-		ax2.set_ylabel(r'$\Delta^{2}$',fontsize=15)
+		# z = 8, 12, 16
+		for i,z in enumerate([5,9,13]):
+			ax = fig.add_subplot(4,1,i+2)
+			pc1 = O.row2mat(E.eig_vecs[0])[z]
+			pc2 = O.row2mat(E.eig_vecs[1])[z]
+			pc3 = O.row2mat(E.eig_vecs[2])[z]
+			ax.plot(O.track(['ps'])[z], pc1/np.abs(pc1).max(), linestyle='-', color='k', linewidth=1)
+			ax.plot(O.track(['ps'])[z], pc2/np.abs(pc2).max(), linestyle='--', color='k', linewidth=1)
+			ax.plot(O.track(['ps'])[z], pc3/np.abs(pc3).max(), linestyle='-.', color='k', linewidth=1)
+			ax.set_xscale('log')
+			ax.set_xlim(0.1,2.1)
+			ax.set_ylim(-1.1,1.1)
+			if i == 1: ax.set_ylabel(r'normalized $\ln\Delta_{21}^{2}$ eigenvector', fontsize=15)
+			ax.set_xlabel(r'$k$ (h Mpc$^{-1}$)', fontsize=15)
+			ax.annotate(r'$z='+yz_data[z][0][1]+'$',xy=(0.75,0.75),xycoords='axes fraction',fontsize=13,bbox=dict(fc="0.95"))
 
-		# Plot Eigenmodes
-		ax4.grid(True)
-		ax4.set_xscale('log')
-		evecs = np.array(map(lambda x: O.track(['ps'],arr=O.row2mat(x)),E.eig_vecs))
-		p3, = ax4.plot(kbins[z1],evecs[0][z1]/np.abs(evecs[0][z1]).max(),linestyle='-',color='b',linewidth=1.5,alpha=0.5)
-		p4, = ax4.plot(kbins[z1],evecs[1][z1]/np.abs(evecs[1][z1]).max(),linestyle='-',color='r',linewidth=1.5,alpha=0.5)
-		p5, = ax4.plot(kbins[z2],evecs[0][z2]/np.abs(evecs[0][z2]).max(),linestyle='--',color='b',linewidth=1.5,alpha=0.5)
-		p6, = ax4.plot(kbins[z2],evecs[1][z2]/np.abs(evecs[1][z2]).max(),linestyle='--',color='r',linewidth=1.5,alpha=0.5)
-		p8, = ax4.plot(kbins[z3],evecs[0][z3]/np.abs(evecs[0][z3]).max(),linestyle=':',color='b',linewidth=1.5,alpha=0.5)
-		p9, = ax4.plot(kbins[z3],evecs[1][z3]/np.abs(evecs[1][z3]).max(),linestyle=':',color='r',linewidth=1.5,alpha=0.5)
-		ax4.axhline(0,color='k')
-		ax4.set_xlabel(r'$k$ ($h$ Mpc$^{-1}$)',fontsize=15)
-		ax4.set_ylabel(r'$\phi_{\Delta^{2}}$',fontsize=15)
-		ax4.set_xlim(1e-1,4)
-		ax4.set_ylim(-1.1,1.1)
-
-		# Plot Neutral Fraction and Brightness Temperature
-		ax3b = ax3.twinx()
-		gdat = O.track(['xH','Tb'],arr=O.row2mat(E.fid_data))
-		p11, = ax3.plot(z_array,gdat.T[0],color='k',linestyle='-',linewidth=2,alpha=0.75)
-		p12, = ax3b.plot(z_array,gdat.T[1],color='k',linestyle='--',linewidth=2,alpha=0.75)
-		ax3.legend([p11,p12],[r'$\langle x_{HI}\rangle$',r'$\langle\delta T_{b}\rangle$'],loc=1)
-		ax3.set_xlabel(r'$z$',fontsize=16)
-		ax3.set_ylabel(r'$\langle x_{HI}\rangle$',fontsize=16)
-		ax3b.set_ylabel(r'$\langle\delta T_{b}\rangle$ (mK)',fontsize=16)
-		ax3.set_xlim(6,25)
-		ax3.set_ylim(0,1.1)
-		ax3b.set_ylim(-200,100)
-
-		# Plot Eigenmodes
-		ax5b = ax5.twinx()
-		evecs = np.array(map(lambda x: O.track(['xH','Tb'],arr=O.row2mat(x)),E.eig_vecs))
-		evecs = np.array(map(lambda x: x/map(np.max,np.abs(x.T)), evecs) )
-		p13, = ax5.plot(z_array,evecs[0].T[0],linestyle='-',color='b',linewidth=1.5,alpha=0.5)
-		p14, = ax5.plot(z_array,evecs[1].T[0],linestyle='-',color='r',linewidth=1.5,alpha=0.5)
-		p16, = ax5b.plot(z_array,evecs[0].T[1],linestyle='--',color='b',linewidth=1.5,alpha=0.5)
-		p17, = ax5b.plot(z_array,evecs[1].T[1],linestyle='--',color='r',linewidth=1.5,alpha=0.5)
-		ax5.axhline(0,color='k')
-		ax5.set_xlabel(r"$z$",fontsize=16)
-		ax5.set_ylabel(r'$\phi_{x_{HI}}$',fontsize=16)
-		ax5b.set_ylabel(r'$\phi_{T_{B}}$',fontsize=16)
-		ax5.set_xlim(6,25)
-		ax5.set_ylim(-1.1,1.1)
-		ax5b.set_ylim(-1.1,1.1)
-
-		fig.savefig('data_compress.png',dpi=200,bbox_inches='tight')
+		fig.savefig('eigenmodes.png',dpi=150,bbox_inches='tight')
 		mp.close()
 
-	use_tr_for_cv = False
+	use_tr_for_cv = True
 	if use_tr_for_cv == True:
-		within = np.where(np.array(map(la.norm,E.Xsph))<2.0)[0]
+		within = np.where(np.array(map(la.norm,E.Xsph))<1e10)[0]
+		within = np.where(np.array(map(lambda x: np.abs(x).max(), E.Xsph))<1.3)[0]
 		rando = np.random.choice(np.arange(len(within)), replace=False, size=1000)
 		data_cv = np.copy(data_tr)[within[rando]]
 		grid_cv = np.copy(grid_tr)[within[rando]]
@@ -1396,17 +1343,17 @@ if __name__ == "__main__":
 		data_cv = data_cv[within_r]
 		grid_cv = grid_cv[within_r]
 
-	kfold_cv = True
+	kfold_cv = False
 	calibrate = True
 	add_lnlike_cov = True
 	if cross_validate_ps == True:
 		print_message('...cross validating power spectra')
 		if kfold_cv == True:
-			limit_range = True
+			limit_range = False
 			Nclus = 1
 			Nsamp = 500
 			if limit_range == True:
-				within = np.where(np.array(map(la.norm,E.Xsph)) < 3.0)[0]
+				within = np.where(np.array(map(la.norm,E.Xsph)) < 4.0)[0]
 				Nclus_avail = len(within) / Nsamp
 				rando = np.array([[False]*len(data_tr) for i in range(Nclus_avail)])
 				rand_samp = within[np.random.choice(np.arange(len(within)), replace=False, size=Nsamp*Nclus_avail)].reshape(Nclus_avail, Nsamp)[:Nclus, :]
@@ -1426,7 +1373,7 @@ if __name__ == "__main__":
 			data_cv = recon_data
 			grid_cv = recon_grid
 		else:
-			E.cross_validate(grid_cv, data_cv, predict_kwargs=predict_kwargs, LAYG=LAYG, vectorize=vectorize_predict)
+			E.cross_validate(grid_cv, data_cv, predict_kwargs=predict_kwargs, LAYG=LAYG, vectorize=vectorize_predict, use_tree=True)
 			recon = E.recon_cv
 			recon_err = E.recon_err_cv
 			weights = E.weights_cv
@@ -1447,7 +1394,7 @@ if __name__ == "__main__":
 			print_message('...adding pspec cross validated errors to lnlike covariance as weights',type=0)
 			X = recon.T-data_cv.T
 			ps_err_cov = cov_est(X)
-			O.cov += np.abs(np.eye(len(X))*np.array(map(astats.biweight_location,X)))**2 + ps_err_cov
+			#O.cov += np.abs(np.eye(len(X))*np.array(map(astats.biweight_location,X)))**2 + ps_err_cov
 
 			fig = mp.figure(figsize=(6,4))
 			fig.subplots_adjust(wspace=0.05,hspace=0.05)
@@ -1463,7 +1410,7 @@ if __name__ == "__main__":
 			ax1.set_title(r'Telescope Sensitivity Covariance', fontsize=10)
 
 			ax2 = fig.add_subplot(122)
-			im2 = ax2.matshow(np.log10(np.abs(lnprob_kwargs['add_lnlike_cov'])),origin='lower',cmap=cmap,vmin=-5,vmax=4)
+			im2 = ax2.matshow(hera_logcov,origin='lower',cmap=cmap,vmin=-5,vmax=4)
 			ax2.set_xticklabels([])
 			ax2.set_yticklabels([])
 			ax2.set_title(r'CV Residual Covariance', fontsize=10)
@@ -1473,10 +1420,10 @@ if __name__ == "__main__":
 			fig.savefig('emu_cov_'+date+'.png',dpi=150,bbox_inches='tight')
 			mp.close()
 
-		calc_errs(recon,recon_err)
+		calc_errs(recon, recon_err, sc_sig=2.5)
 		plot_cross_valid(fname='cross_validate_ps.png')
 		cv_plots(fname='cv_plots.png')
-		plot_error_dist(fname='cv_err_dists.png')
+		plot_error_dist(fname='cv_err_dists.png', denom='yerr', xlim=(-2,2))
 		plot_data_tr_dist(fname='data_tr_dists.png')
 
 	if cross_validate_like == True:
@@ -1508,6 +1455,37 @@ if __name__ == "__main__":
 
 	print_message('...making plots')
 	print_time()
+
+	# Plot Training Set
+	plot_tr = True
+	if plot_tr == True:
+		print_message('...plotting ts')
+		print_time()
+
+		lims = [[None,None] for i in range(11)]
+		pbound = np.array([grid_tr.T[i].max()-grid_tr.T[i].min() for i in range(11)])
+		lims = [[grid_tr.T[i].min()-pbound[i]*0.05, grid_tr.T[i].max()+pbound[i]*0.05] for i in range(11)]
+
+		fig = mp.figure(figsize=(15,8))
+		fig.subplots_adjust(wspace=0.3)
+		j = 0
+		for i in range(6):
+			ax = fig.add_subplot(2,3,i+1)
+			ax.plot(grid_tr.T[j],grid_tr.T[j+1],'k,',alpha=0.75)
+			ax.plot(p_true[j], p_true[j+1], color='m', marker='*', markersize=15)
+			ax.plot(grid_cv.T[j], grid_cv.T[j+1], 'r.', markersize=5, alpha=0.5)
+			#cax = ax.scatter(grid_cv.T[j],grid_cv.T[j+1],s=30,c=lnlike,cmap='spectral_r',alpha=0.75,vmin=-1000,vmax=-500)
+			ax.set_xlim(lims[j])
+			ax.set_ylim(lims[j+1])
+			ax.set_xlabel(p_latex[j],fontsize=16)
+			ax.set_ylabel(p_latex[j+1],fontsize=16)
+			if i == 0:
+				j += 1
+			else:
+				j += 2
+		fig.savefig('ts.png',dpi=100,bbox_inches='tight')
+		mp.close()
+		print_time()
 
 	# Cross Validate cross set
 	if plot_weight_pred == True or plot_ps_pred == True:
@@ -1752,7 +1730,7 @@ if __name__ == "__main__":
 	print_message('...initializing ensemble sampler')
 
 	print_message('...date is '+date)
-	sampler_kwargs = {'vectorize':True}
+	sampler_kwargs = {'vectorize':False}
 	ntemps = 3
 
 	#pool = pathos.multiprocessing.Pool(5) #emcee.utils.MPIPool()
@@ -1765,7 +1743,7 @@ if __name__ == "__main__":
 		pos = np.array([np.copy(grid_cv[np.random.choice(np.arange(len(grid_cv)), replace=False, size=nwalkers)]) for i in range(ntemps)])
 	else:
 		#pos = np.array(map(lambda x: x + x*stats.norm.rvs(0,0.05,nwalkers),p_true)).T
-		pos = np.copy(grid_cv[np.random.choice(np.arange(len(grid_tr)), replace=False, size=nwalkers)])
+		pos = np.copy(grid_tr[np.random.choice(np.arange(len(grid_tr)), replace=False, size=nwalkers)])
 
 
 	# Add priors (other than flat priors)
@@ -1813,7 +1791,7 @@ if __name__ == "__main__":
 		print_time()
 		# Drive Sampler
 		burn_num	= 0
-		step_num	= 500
+		step_num	= 1000
 
 		print_message('...driving with burn_num='+str(burn_num)+', step_num='+str(step_num),type=0)
 		S.samp_drive(pos,step_num=step_num,burn_num=burn_num)
@@ -2053,7 +2031,7 @@ if __name__ == "__main__":
 				ax = fig.add_subplot(gs[sub1[i,k]:sub2[i,k],sub3[i,k]:sub4[i,k]])
 				if k == 0:
 					ax.plot(grid_tr.T[j],grid_tr.T[j+1],color='steelblue',marker=',',linestyle='',alpha=0.75,zorder=0)
-					corner.hist2d(samples.T[j], samples.T[j+1], ax=ax, color='k', bins=20, smooth=0.75, levels=levels,
+					corner.hist2d(samples.T[j], samples.T[j+1], ax=ax, color='k', bins=40, smooth=0.5, levels=levels,
 								plot_datapoints=False, range=np.array([lims[j],lims[j+1]]), zorder=1)
 					ax.scatter(p_true[j], p_true[j+1], color='orangered', marker='s', edgecolor='', s=60, zorder=2)
 					ax.axvline(p_true[j], color='orangered', linewidth=1.5, alpha=0.75)
