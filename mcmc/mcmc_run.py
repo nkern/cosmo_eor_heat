@@ -128,14 +128,14 @@ if __name__ == "__main__":
 		RandomState = 1
 
 		# Choose Training Set
-		TS_data = lhs_data
+		TS_data = lhsfs_hera331_data
 		#TS_data = lhs_data
 
 		# Separate Data
-		#tr_len = 582
-		tr_len = 16344
+		tr_len = 582
+		#tr_len = 16344
 		rd = np.random.RandomState(RandomState)
-		rando = rd.choice(np.arange(tr_len),size=16300,replace=False)
+		rando = rd.choice(np.arange(tr_len),size=500,replace=False)
 		rando = np.array(map(lambda x: x in rando,np.arange(tr_len)))
 
 		tr_name = TS_data['name']
@@ -147,7 +147,7 @@ if __name__ == "__main__":
 		data_tr = data_tr.T[keep].T
 
 		# Add other datasets
-		add_other_data = False
+		add_other_data = True
 		if add_other_data == True:
 			# Choose Training Set
 			TS_data = gauss_hera127_data
@@ -155,7 +155,7 @@ if __name__ == "__main__":
 			# Separate Data
 			rd = np.random.RandomState(RandomState)
 			tr_len = 5000
-			rando = rd.choice(np.arange(tr_len),size=2000,replace=False)
+			rando = rd.choice(np.arange(tr_len),size=2500,replace=False)
 			rando = np.array(map(lambda x: x in rando,np.arange(tr_len)))
 
 			tr_name += '/'+TS_data['name']
@@ -171,7 +171,7 @@ if __name__ == "__main__":
 			direcs_tr = np.concatenate([direcs_tr,direcs_tr2])
 
 		# Add other datasets
-		add_other_data = False
+		add_other_data = True
 		if add_other_data == True:
 			# Choose Training Set
 			TS_data = gauss_hera331_data
@@ -179,7 +179,7 @@ if __name__ == "__main__":
 			# Separate Data
 			rd = np.random.RandomState(RandomState)
 			tr_len = 5000
-			rando = rd.choice(np.arange(tr_len),size=3500,replace=False)
+			rando = rd.choice(np.arange(tr_len),size=4000,replace=False)
 			rando = np.array(map(lambda x: x in rando,np.arange(tr_len)))
 
 			tr_name += '/'+TS_data['name']
@@ -197,9 +197,9 @@ if __name__ == "__main__":
 		print "...added training set: "+tr_name+" of length: "+str(len(data_tr))
 
 		# Choose Cross Validation Set
-		CV_data 		= cross_valid_data
-		TS_remainder	= False
-		use_remainder	= False
+		CV_data 		= gauss_hera331_data
+		TS_remainder	= True
+		use_remainder	= True
 
 		# Separate Data
 		if TS_remainder == True:
@@ -208,7 +208,7 @@ if __name__ == "__main__":
 			else:
 				remainder = np.where(rando==False)[0]
 				rando = np.array([False for i in range(tr_len)])
-				rando[np.random.choice(remainder,size=1000,replace=False)] = True
+				rando[np.random.choice(remainder,size=2000,replace=False)] = True
 			
 		else:
 			tr_len = 550
@@ -225,13 +225,19 @@ if __name__ == "__main__":
 		data_cv = data_cv.T[keep].T
 
 		# Get Fiducial Data
-		feed_fid = False
+		feed_fid = True
 		if feed_fid == True:
-			fid_params = fiducial_data['fid_params']
-			fid_data = fiducial_data['fid_data']
-			fid_meta = fiducial_data['metadata']
-			keep = np.array(map(lambda x: x in keep_meta, fid_meta))
-			fid_data = fid_data[keep]
+			#fid_params = fiducial_data['fid_params']
+			#fid_data = fiducial_data['fid_data']
+			#fid_meta = fiducial_data['metadata']
+			#keep = np.array(map(lambda x: x in keep_meta, fid_meta))
+			#fid_data = fid_data[keep]
+			fid_params = np.array(map(astats.biweight_location, grid_tr.T))
+			param_rad = np.array([astats.biweight_midvariance(grid_tr.T[i]-fid_params[i]) for i in range(len(fid_params))])
+			sample_R = np.array(map(la.norm, (grid_tr-fid_params)/param_rad))
+			cent = np.where(sample_R == sample_R.min())[0][0]
+			fid_params = grid_tr[cent]
+			fid_data = data_tr[cent]
 		else:
 			fid_params = np.array(map(astats.biweight_location,grid_tr.T))
 			fid_data = np.array([astats.biweight_location(data_tr.T[i]) if np.isnan(astats.biweight_location(data_tr.T[i])) == False \
@@ -343,7 +349,7 @@ if __name__ == "__main__":
 
 
 	### Variables for Emulator ###
-	N_modes = 40
+	N_modes = 30
 	N_params = len(params)
 	N_data = 660
 	N_samples = len(data_tr)
@@ -772,11 +778,11 @@ if __name__ == "__main__":
 	print_mem()
 	k = 80
 	use_pca = True
-	emode_variance_div = 2.0
+	emode_variance_div = 1.0
 	fast = True
 	compute_klt = False
 	save_chol = False
-	LAYG = True
+	LAYG = False
 
 	# First Guess of GP Hyperparameters
 	ell = np.array([[5.0 for i in range(N_params)] for i in range(N_modes)]) / np.linspace(1.0,2.0,N_modes).reshape(N_modes,1)
@@ -814,12 +820,12 @@ if __name__ == "__main__":
 	gp_kwargs_arr = np.array([dict(zip(names,[kernels[i],False,optimize,n_restarts[i],alpha])) for i in map(lambda x: x[0],E.modegroups)])
 
 	### Load HyperParameters ###
-	load_hype	= False
+	load_hype	= True
 	load_obs	= True
-	new_tr		= False
+	new_tr		= True
 	if load_hype == True:
-	#	hp_fname = 'forecast_hyperparams30.pkl'
-		hp_fname = 'hypersolve_1D.pkl'
+		hp_fname = 'forecast_hyperparams34.pkl'
+#		hp_fname = 'hypersolve_1D.pkl'
 		with open(hp_fname,'rb') as f:
 			print("...loading previous hyperparameter file: "+hp_fname)
 			input = pkl.Unpickler(f)
@@ -907,7 +913,7 @@ if __name__ == "__main__":
 	if train_emu == True:
 		save_hype		= False
 		kfold_regress	= False
-		hypersolve_1D	= True
+		hypersolve_1D	= False
 		SoD				= False
 		hyper_filename	= None
 		if kfold_regress == True:
@@ -997,7 +1003,7 @@ if __name__ == "__main__":
 		# Train!
 		print_message('...training emulator')
 		print_time()
-		E.train(data_tr[:k],grid_tr[:k],fid_data=E.fid_data,fid_params=E.fid_params,**kwargs_tr)
+		E.train(data_tr,grid_tr,fid_data=E.fid_data,fid_params=E.fid_params,**kwargs_tr)
 		print_time()
 
 		# Print out fitted hyperparameters
@@ -1154,7 +1160,7 @@ if __name__ == "__main__":
 		cmap = mp.cm.spectral_r
 		cmaplist = [cmap(i) for i in range(cmap.N)]
 		cmap = cmap.from_list('Custom cmap', cmaplist, cmap.N)
-		bounds = np.linspace(0,20,21)
+		bounds = np.linspace(0,50,26)
 		norm = matplotlib.colors.BoundaryNorm(bounds, cmap.N)
 		im = ax.scatter(O.x_ext,zarr_vec,c=exp_log_frac_err_sc_vec*100,marker='o',s=30,edgecolor='',alpha=0.75, cmap=cmap, norm=norm)
 		ax.set_xscale('log')
@@ -1328,10 +1334,10 @@ if __name__ == "__main__":
 		fig.savefig('eigenmodes.png',dpi=150,bbox_inches='tight')
 		mp.close()
 
-	use_tr_for_cv = True
+	use_tr_for_cv = False
 	if use_tr_for_cv == True:
 		within = np.where(np.array(map(la.norm,E.Xsph))<1e10)[0]
-		within = np.where(np.array(map(lambda x: np.abs(x).max(), E.Xsph))<1.3)[0]
+		within = np.where(np.array(map(lambda x: np.abs(x).max(), E.Xsph))<1.5)[0]
 		rando = np.random.choice(np.arange(len(within)), replace=False, size=1000)
 		data_cv = np.copy(data_tr)[within[rando]]
 		grid_cv = np.copy(grid_tr)[within[rando]]
@@ -1339,9 +1345,10 @@ if __name__ == "__main__":
 	limit_cv_range = False
 	if limit_cv_range == True:
 		grid_cv_sph = np.dot(E.invL, (grid_cv-E.fid_params).T).T
-		within_r = np.where(np.array(map(la.norm, grid_cv_sph))<3)[0]
-		data_cv = data_cv[within_r]
-		grid_cv = grid_cv[within_r]
+		within = np.where(np.array(map(la.norm, grid_cv_sph))<3)[0]
+		within = np.where(np.array(map(lambda x: np.abs(x).max(), grid_cv_sph))<2.0)[0]
+		data_cv = data_cv[within]
+		grid_cv = grid_cv[within]
 
 	kfold_cv = False
 	calibrate = True
@@ -1394,7 +1401,7 @@ if __name__ == "__main__":
 			print_message('...adding pspec cross validated errors to lnlike covariance as weights',type=0)
 			X = recon.T-data_cv.T
 			ps_err_cov = cov_est(X)
-			#O.cov += np.abs(np.eye(len(X))*np.array(map(astats.biweight_location,X)))**2 + ps_err_cov
+			O.cov += np.abs(np.eye(len(X))*np.array(map(astats.biweight_location,X)))**2 + ps_err_cov
 
 			fig = mp.figure(figsize=(6,4))
 			fig.subplots_adjust(wspace=0.05,hspace=0.05)
@@ -1791,7 +1798,7 @@ if __name__ == "__main__":
 		print_time()
 		# Drive Sampler
 		burn_num	= 0
-		step_num	= 1000
+		step_num	= 5000
 
 		print_message('...driving with burn_num='+str(burn_num)+', step_num='+str(step_num),type=0)
 		S.samp_drive(pos,step_num=step_num,burn_num=burn_num)
