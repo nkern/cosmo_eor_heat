@@ -22,6 +22,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as mp
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import matplotlib.gridspec as gridspec
+from matplotlib import ticker
 from fits_table import fits_table,fits_to_array,fits_data
 from curve_poly_interp import curve_interp
 from plot_ellipse import plot_ellipse
@@ -91,6 +92,7 @@ if __name__ == "__main__":
 
 	# Separate and Draw Data
 	def draw_data(keep_meta=['ps']):
+
 		make_globals = ['tr_len','data_tr','grid_tr','data_cv','grid_cv','fid_params','fid_data',
 						'keep_meta','data_od','grid_od','tr_name','cv_name']
 
@@ -155,7 +157,7 @@ if __name__ == "__main__":
 			# Separate Data
 			rd = np.random.RandomState(RandomState)
 			tr_len = 5000
-			rando = rd.choice(np.arange(tr_len),size=2500,replace=False)
+			rando = rd.choice(np.arange(tr_len),size=3000,replace=False)
 			rando = np.array(map(lambda x: x in rando,np.arange(tr_len)))
 
 			tr_name += '/'+TS_data['name']
@@ -225,7 +227,7 @@ if __name__ == "__main__":
 		data_cv = data_cv.T[keep].T
 
 		# Get Fiducial Data
-		feed_fid = True
+		feed_fid = False
 		if feed_fid == True:
 			#fid_params = fiducial_data['fid_params']
 			#fid_data = fiducial_data['fid_data']
@@ -349,7 +351,7 @@ if __name__ == "__main__":
 
 
 	### Variables for Emulator ###
-	N_modes = 30
+	N_modes = 40
 	N_params = len(params)
 	N_data = 660
 	N_samples = len(data_tr)
@@ -362,7 +364,7 @@ if __name__ == "__main__":
 	scale_by_std = True
 	scale_by_obs_errs = False
 	scale_by_davg_ov_yerr = True
-	davg_maxscale = 3
+	davg_maxscale = 10
 	norotate = True
 	cov_est = lambda x: biweight_midcovariance(x)
 	cov_est_name = 'biweight_midcovariance'
@@ -460,7 +462,7 @@ if __name__ == "__main__":
 		print_message('...making mock obs with 21cmSense')
 		print_time()
 		# Get fiducial parameters
-		data_filename = 'mockObs_hera331_allz.pkl'
+		data_filename = 'mockObs_hera331_allz2.pkl'
 		mock_direc = 'param_space/mock_obs/zeta_040.000_numin_300.000'
 		p_true = np.loadtxt(mock_direc+'/param_vals.tab',usecols=(1,),unpack=True)
 
@@ -609,7 +611,7 @@ if __name__ == "__main__":
 	print_mem()
 
 	## Plot Mock ##
-	plot_mock = False
+	plot_mock = True
 	if plot_mock == True:
 		print_message("...plotting mock obs")
 		print_time()
@@ -625,7 +627,8 @@ if __name__ == "__main__":
 		for z in np.arange(44)[5:29:6]:
 			ax = fig.add_subplot(1,4,i+1)
 			ax.grid(True)
-			ax.errorbar(xdata[z][valid[z]], ydata[z][valid[z]], yerr=yerrs[z][valid[z]], color='grey', fmt='s', alpha=0.9, markersize=4, ecolor='darkorange')
+			ax.errorbar(xdata[z][valid[z]], ydata[z][valid[z]], yerr=yerrs[z][valid[z]], color='k', fmt='s',
+								alpha=0.8, markersize=2.5, ecolor='darkorange',markeredgecolor='None')
 			ax.axvspan(6e-2,1e-1, color='grey', alpha=0.2)
 			ax.axvspan(6e-2,1e-1, hatch='\\', color='None', alpha=1.0)
 			ax.set_xlim(6e-2, 5)
@@ -633,47 +636,15 @@ if __name__ == "__main__":
 			ax.set_xscale('log')
 			ax.set_yscale('log')
 			ax.set_title(r'$z = '+str(z_array[z])+'$', fontsize=14)
-			ax.set_xlabel(r'$k$ ($h$ Mpc$^{-1}$)', fontsize=12)
+			ax.set_xlabel(r'$k\ (\mathrm{h\ Mpc}^{-1}$)', fontsize=12)
 			if i == 0:
-				ax.set_ylabel(r'$\Delta^{2}_{21}$ (mK$^{2}$)', fontsize=13)
+				ax.set_ylabel(r'$\Delta^{2}_{21}\ (\mathrm{mK}^{2}$)', fontsize=13)
 			else:
 				ax.set_yticklabels([])
 
 			i += 1
 
 		fig.savefig('mock_obs.png', dpi=200, bbox_inches='tight')
-		mp.close()
-		print_time()
-
-	# Plot Training Set
-	plot_tr = True
-	if plot_tr == True:
-		print_message('...plotting ts')
-		print_time()
-
-		lims = [[None,None] for i in range(11)]
-		pbound = np.array([grid_tr.T[i].max()-grid_tr.T[i].min() for i in range(11)])
-		lims = [[grid_tr.T[i].min()-pbound[i]*0.05, grid_tr.T[i].max()+pbound[i]*0.05] for i in range(11)]
-
-		fig = mp.figure(figsize=(15,8))
-		fig.subplots_adjust(wspace=0.3)
-		j = 0
-		for i in range(6):
-			ax = fig.add_subplot(2,3,i+1)
-			ax.plot(grid_tr.T[j],grid_tr.T[j+1],'k,',alpha=0.75)
-			ax.plot(p_true[j], p_true[j+1], color='m', marker='*', markersize=15)
-			ax.plot(grid_cv.T[j], grid_cv.T[j+1], 'r.', markersize=5, alpha=0.5)
-			#cax = ax.scatter(grid_cv.T[j],grid_cv.T[j+1],s=30,c=lnlike,cmap='spectral_r',alpha=0.75,vmin=-1000,vmax=-500)
-			ax.set_xlim(lims[j])
-			ax.set_ylim(lims[j+1])
-			ax.set_xlabel(p_latex[j],fontsize=16)
-			ax.set_ylabel(p_latex[j+1],fontsize=16)
-			if i == 0:
-				j += 1
-			else:
-				j += 2
-#		fig.colorbar(cax)
-		fig.savefig('ts.png',dpi=100,bbox_inches='tight')
 		mp.close()
 		print_time()
 
@@ -785,7 +756,7 @@ if __name__ == "__main__":
 	LAYG = False
 
 	# First Guess of GP Hyperparameters
-	ell = np.array([[5.0 for i in range(N_params)] for i in range(N_modes)]) / np.linspace(1.0,2.0,N_modes).reshape(N_modes,1)
+	ell = np.array([[5.0 for i in range(N_params)] for i in range(N_modes)]) / np.linspace(1.0,5.0,N_modes).reshape(N_modes,1)
 	ell_bounds = np.array([np.array([ell[i]*0.2,ell[i]*5.0]).T for i in range(N_modes)])
 	ell_bounds = np.array([np.array([[0.1,100] for j in range(N_params)]) for i in range(N_modes)])
 
@@ -815,7 +786,7 @@ if __name__ == "__main__":
 
 	names       = ['kernel','copy_X_train','optimizer','n_restarts_optimizer','alpha']
 	optimize    = 'fmin_l_bfgs_b'
-	n_restarts  = np.array(np.linspace(0,0,E.N_modes),int)
+	n_restarts  = np.array(np.linspace(10,3,E.N_modes),int)
 	alpha		= 1e-8
 	gp_kwargs_arr = np.array([dict(zip(names,[kernels[i],False,optimize,n_restarts[i],alpha])) for i in map(lambda x: x[0],E.modegroups)])
 
@@ -824,7 +795,7 @@ if __name__ == "__main__":
 	load_obs	= True
 	new_tr		= True
 	if load_hype == True:
-		hp_fname = 'forecast_hyperparams34.pkl'
+		hp_fname = 'forecast_hyperparams36.pkl'
 #		hp_fname = 'hypersolve_1D.pkl'
 		with open(hp_fname,'rb') as f:
 			print("...loading previous hyperparameter file: "+hp_fname)
@@ -878,6 +849,7 @@ if __name__ == "__main__":
 		Xsph		= np.dot(E.invL, (grid_tr-E.fid_params).T).T	
 		E.create_tree(Xsph)
 		E.update(dez.create(['grid_tr','data_tr','Xsph'], locals()))
+		yz_data_ext = O.row2mat(yz_data, row2mat=False)
 
 	# Create training kwargs
 	kwargs_tr = {'use_pca':use_pca,'norotate':norotate,
@@ -901,7 +873,7 @@ if __name__ == "__main__":
 	add_model_cov = False
 	ndim = N_params
 	nwalkers = 300
-	vectorize_predict = False
+	vectorize_predict = True
 
 	sampler_init_kwargs = {'use_Nmodes':use_Nmodes,'param_bounds':param_bounds,'param_hypervol':param_hypervol,
 							'nwalkers':nwalkers,'ndim':ndim,'N_params':ndim,'z_len':z_len}
@@ -963,12 +935,12 @@ if __name__ == "__main__":
 			print_time()
 			bounds = [0.1, 100]
 			kernel = gp.kernels.RBF(length_scale=10.0, length_scale_bounds=(bounds[0], bounds[1]))
-			ell = E.hypersolve_1D(grid_od, data_od, kernel=kernel, n_restarts=15, alpha=1e-6)
+			ell = E.hypersolve_1D(grid_od, data_od, kernel=kernel, n_restarts=15, alpha=1e-5)
 			kernels = np.array([gp.kernels.RBF(length_scale=ell[i], length_scale_bounds=(bounds[0],bounds[1])) for i in range(len(ell))])
 			names       = ['kernel','copy_X_train','optimizer','n_restarts_optimizer','alpha']
 			optimize    = None #'fmin_l_bfgs_b'
 			n_restarts  = 0
-			alpha       = 1e-6
+			alpha       = 1e-5
 			gp_kwargs_arr = np.array([dict(zip(names,[kernels[i],False,optimize,n_restarts,alpha])) for i in map(lambda x: x[0],E.modegroups)])
 			kwargs_tr['gp_kwargs_arr'] = gp_kwargs_arr
 			save_hype = True
@@ -978,27 +950,12 @@ if __name__ == "__main__":
 			# Sparse approximation to hyperparameter regression using Subset of Data approach
 			print_message('...running Subset of Data regression')
 			print_time()
-			E.sphere(E.grid_tr, fid_params=E.fid_params, invL=E.invL)
-			grid_D, grid_NN = E.nearest(np.zeros(11), k=1000, use_tree=False)
-			sod_data	= np.copy(data_tr[grid_NN])
-			sod_grid	= np.copy(grid_tr[grid_NN])
-			names       = ['kernel','copy_X_train','optimizer','n_restarts_optimizer','alpha']
-			optimize    = 'fmin_l_bfgs_b'
-			n_restarts  = 4
-			alpha       = 1e-8
-			gp_kwargs_arr = np.array([dict(zip(names,[kernels[i],False,optimize,n_restarts,alpha])) for i in map(lambda x: x[0],E.modegroups)])
-			kwargs_tr['gp_kwargs_arr'] = gp_kwargs_arr
-			E.train(sod_data, sod_grid, fid_data=E.fid_data, fid_params=E.fid_params, **kwargs_tr)
-			# Insert into gp_kwargs_arr
-			fit_kernels = np.array(map(lambda x: x.kernel_, E.GP))
-			for i in range(len(E.modegroups)):
-				gp_kwargs_arr[i]['optimizer'] = None
-				if i < E.N_modegroups:
-					gp_kwargs_arr[i]['kernel'] = E.GP[i].kernel_
-			kwargs_tr['gp_kwargs_arr'] = gp_kwargs_arr
-			E.N_modegroups = len(E.modegroups)	
-			save_hype = True
-			print_time()
+			# Limit Grid
+			within = np.where(np.array(map(la.norm, E.Xsph))<2.4)[0]
+			data_tr = np.copy(data_tr)[within]
+			grid_tr = np.copy(grid_tr)[within]
+			E.data_tr, E.grid_tr = data_tr, grid_tr
+			E.sphere(grid_tr, fid_params=E.fid_params, invL=E.invL)
 
 		# Train!
 		print_message('...training emulator')
@@ -1051,7 +1008,7 @@ if __name__ == "__main__":
 	### FUNCTIONS ###
 	#################
 
-	def calc_errs(recon, recon_err, sc_sig=4.0):
+	def calc_errs(recon, recon_err, sc_sig=3.5):
 		# Get cross validated reconstruction error
 		frac_err = (recon-data_cv)/data_cv
 		log_frac_err = np.log(recon/data_cv)
@@ -1153,25 +1110,33 @@ if __name__ == "__main__":
 		fig.savefig(fname,dpi=150,bbox_inches='tight')
 		mp.close()
 
-	def cv_plots(fname='cv_plots.png', inset=True):
+	def cv_plots(fname='cv_plots.png', frac_err_vec=None, frac_yerr_vec=None, cbmax1=1.0,
+					inset=True, in_range=1.0, kbin=342):
+		if frac_err_vec is None:
+			frac_err_vec = log_frac_err_sc_vec
+		if frac_yerr_vec is None:
+			frac_yerr_vec = std_obserr_sc_vec
+
 		fig = mp.figure(figsize=(4,8))
 		fig.subplots_adjust(hspace=0.1)
 		ax = fig.add_subplot(211)
 		cmap = mp.cm.spectral_r
 		cmaplist = [cmap(i) for i in range(cmap.N)]
 		cmap = cmap.from_list('Custom cmap', cmaplist, cmap.N)
-		bounds = np.linspace(0,50,26)
+		bounds = np.linspace(0,cbmax1,21)
 		norm = matplotlib.colors.BoundaryNorm(bounds, cmap.N)
-		im = ax.scatter(O.x_ext,zarr_vec,c=exp_log_frac_err_sc_vec*100,marker='o',s=30,edgecolor='',alpha=0.75, cmap=cmap, norm=norm)
+		im = ax.scatter(O.x_ext,zarr_vec,c=frac_err_vec,marker='o',s=30,edgecolor='',alpha=0.75, cmap=cmap, norm=norm)
 		ax.set_xscale('log')
-		ax.set_xlim(0.08,3)
+		ax.set_xlim(0.08,2.5)
 		ax.set_ylim(4,25)
 		ax.set_ylabel(r'$z$',fontsize=20)
 		cbax = fig.add_axes([0.92, 0.52, 0.03, 0.38])
-		cb = matplotlib.colorbar.ColorbarBase(cbax, cmap=cmap, norm=norm, spacing='proportional', ticks=bounds, boundaries=bounds, format='%1i')
-		cb.set_label('Average Cross Validation Percent Error', fontsize=10)
+		cb = matplotlib.colorbar.ColorbarBase(cbax, cmap=cmap, norm=norm, spacing='proportional', ticks=bounds, boundaries=bounds, format='%.2f')
+		cb.set_label(r'$\sigma_{\mathrm{CV}}$', fontsize=16, labelpad=15, rotation=0)
+		tick_locator = ticker.MaxNLocator(nbins=11)
+		cb.locator = tick_locator
+		cb.update_ticks()
 		_ = [tl.set_size(10) for tl in cb.ax.get_yticklabels()]
-		[tl.set_visible(False) for tl in cb.ax.get_yticklabels()[1::2]]
 
 		ax = fig.add_subplot(212)
 		cmap = mp.cm.spectral_r
@@ -1179,41 +1144,45 @@ if __name__ == "__main__":
 		cmap = cmap.from_list('Custom cmap', cmaplist, cmap.N)
 		bounds = np.linspace(0,2,21)
 		norm = matplotlib.colors.BoundaryNorm(bounds, cmap.N)
-		im = ax.scatter(O.x_ext,zarr_vec,c=std_obserr_sc_vec,marker='o',s=30,edgecolor='',alpha=0.75, cmap=cmap, norm=norm)
+		im = ax.scatter(O.x_ext,zarr_vec,c=frac_yerr_vec,marker='o',s=30,edgecolor='',alpha=0.75, cmap=cmap, norm=norm)
 		ax.set_xscale('log')
-		ax.set_xlim(0.08,3)
+		ax.set_xlim(0.08,2.5)
 		ax.set_ylim(4,25)
 		ax.set_xlabel(r'$k$ (h Mpc$^{-1}$)',fontsize=16)
 		ax.set_ylabel(r'$z$',fontsize=20)
 		cbax = fig.add_axes([0.92, 0.1, 0.03, 0.38])
 		cb = matplotlib.colorbar.ColorbarBase(cbax, cmap=cmap, norm=norm, spacing='proportional', ticks=bounds, boundaries=bounds, format='%.1f')
-		cb.set_label('Average Cross Validation Error Over Survey Error', fontsize=10)
+		cb.set_label(r'$\sigma_{\mathrm{S}}$', fontsize=16, labelpad=12, rotation=0)
+		tick_locator = ticker.MaxNLocator(nbins=11)
+		cb.locator = tick_locator
+		cb.update_ticks()
 		_ = [tl.set_size(10) for tl in cb.ax.get_yticklabels()]
-		[tl.set_visible(False) for tl in cb.ax.get_yticklabels()[1::2]]
 
 		if inset == True:
 			ax2 = fig.add_axes([0.65, 0.3, 0.2, 0.15], zorder=2)
-			ax.plot([float(yz_data_ext[342][0])-.005,0.95],[float(yz_data_ext[342][1])+.2,22],linewidth=1,color='k',alpha=0.75)
-			ax.plot([float(yz_data_ext[342][0])+.005,0.95],[float(yz_data_ext[342][1])-.2,16],linewidth=1,color='k',alpha=0.75)
-			p = ax2.hist(frac_yerr.T[342], bins=30, histtype='step', color='b', linewidth=1.5, alpha=0.5, range=(-1,1))
+			ax.plot([float(yz_data_ext[kbin][0])-.005,0.90],[float(yz_data_ext[kbin][1])+.2,22],linewidth=1,color='k',alpha=0.75)
+			ax.plot([float(yz_data_ext[kbin][0])+.005,0.90],[float(yz_data_ext[kbin][1])-.2,16],linewidth=1,color='k',alpha=0.75)
+			p = ax2.hist(frac_yerr.T[kbin], bins=35, histtype='step', color='b', linewidth=1.5, alpha=0.5, range=(-in_range,in_range), normed=True)
+			ax2.axvline(-std_obserr_sc_vec[kbin], c='red', alpha=0.5, ymax=0.3)
+			ax2.axvline(std_obserr_sc_vec[kbin], c='red', alpha=0.5, ymax=0.3)
 			ax2.set_yticklabels([])
 			ax2.set_yticks([])
-			ax2.set_xticks(np.arange(-1,1.01,1))
-			ax2.set_xlim(-1,1)
+			ax2.set_xticks(np.arange(-2,2.01,1))
+			ax2.set_xlim(-in_range,in_range)
 			ax2.set_ylim(0,p[0].max()*1.1)
 			
 		fig.savefig(fname, dpi=200, bbox_inches='tight')
 		mp.close()
 
-	def plot_error_dist(fname='cv_err_dists.png', denom='data', xlim=(-1,1)):
+	def plot_error_dist(fname='cv_err_dists.png', frac_err=None, std_vec=None, xlim=(-1,1)):
+
+		if frac_err is None:
+			frac_err = log_frac_err
+		if std_vec is None:
+			std_vec = exp_log_frac_err_sc_vec
 
 		fig = mp.figure(figsize=(12,12))
 		fig.subplots_adjust(hspace=0.1,wspace=0.1)
-
-		if denom == 'data':
-			frac_err = np.log(recon/data_cv)
-		elif denom == 'yerr':
-			frac_err = (recon-data_cv)/O.yerrs
 
 		i = 0
 		plot_kbins = np.arange(len(yz_data_ext))
@@ -1222,6 +1191,8 @@ if __name__ == "__main__":
 		for j in plot_kbins:
 			ax = fig.add_subplot(8,8,i+1)
 			p=ax.hist(frac_err.T[j], bins=30, range=xlim, histtype='step', color='k', linewidth=1.5, alpha=0.5, normed=True)
+			ax.axvline(std_vec[j], color='r', alpha=0.5, ymax=0.3)
+			ax.axvline(-std_vec[j], color='r', alpha=0.5, ymax=0.3)
 			ax.set_xlim(xlim)
 			ax.set_ylim(0,p[0].max()*1.1)
 			ax.set_yticklabels([])
@@ -1232,9 +1203,9 @@ if __name__ == "__main__":
 				[tl.set_visible(False) for tl in ax.get_xticklabels()[::2]]
 			i += 1	
 
-		ax = fig.add_axes([.4,0.9,.2,.01])
-		ax.axis('off')
-		ax.set_title('frac '+denom+' err', fontsize=16)
+		#ax = fig.add_axes([.4,0.9,.2,.01])
+		#ax.axis('off')
+		#ax.set_title('log frac data err', fontsize=16)
 		fig.savefig(fname, dpi=200, bbox_inches='tight')
 		mp.close()
 
@@ -1290,12 +1261,13 @@ if __name__ == "__main__":
 	drive_sampler		= t
 	parallel_temp		= f
 	save_chains			= t
+	edit_log			= t
 
 	# Plotting
 	trace_plots			= t
 	autocorr_plots		= t
 	tri_plots			= t
-	plot_boxplots		= t
+	plot_boxplots		= f
 	plot_marghist		= t
 	plot_recplot		= t
 	plot_map_pspec		= t
@@ -1336,8 +1308,8 @@ if __name__ == "__main__":
 
 	use_tr_for_cv = False
 	if use_tr_for_cv == True:
-		within = np.where(np.array(map(la.norm,E.Xsph))<1e10)[0]
-		within = np.where(np.array(map(lambda x: np.abs(x).max(), E.Xsph))<1.5)[0]
+		within = np.where(np.array(map(la.norm,E.Xsph))<2.0)[0]
+		within = np.where(np.array(map(lambda x: np.abs(x).max(), E.Xsph))<1.375)[0]
 		rando = np.random.choice(np.arange(len(within)), replace=False, size=1000)
 		data_cv = np.copy(data_tr)[within[rando]]
 		grid_cv = np.copy(grid_tr)[within[rando]]
@@ -1345,22 +1317,22 @@ if __name__ == "__main__":
 	limit_cv_range = False
 	if limit_cv_range == True:
 		grid_cv_sph = np.dot(E.invL, (grid_cv-E.fid_params).T).T
-		within = np.where(np.array(map(la.norm, grid_cv_sph))<3)[0]
-		within = np.where(np.array(map(lambda x: np.abs(x).max(), grid_cv_sph))<2.0)[0]
+		within = np.where(np.array(map(la.norm, grid_cv_sph))<4.5)[0]
+		#within = np.where(np.array(map(lambda x: np.abs(x).max(), grid_cv_sph))<2.0)[0]
 		data_cv = data_cv[within]
 		grid_cv = grid_cv[within]
 
 	kfold_cv = False
-	calibrate = True
+	calibrate = False
 	add_lnlike_cov = True
 	if cross_validate_ps == True:
 		print_message('...cross validating power spectra')
 		if kfold_cv == True:
-			limit_range = False
-			Nclus = 1
-			Nsamp = 500
+			limit_range = True
+			Nclus = 4
+			Nsamp = 400
 			if limit_range == True:
-				within = np.where(np.array(map(la.norm,E.Xsph)) < 4.0)[0]
+				within = np.where(np.array(map(la.norm,E.Xsph)) < 2.75)[0]
 				Nclus_avail = len(within) / Nsamp
 				rando = np.array([[False]*len(data_tr) for i in range(Nclus_avail)])
 				rand_samp = within[np.random.choice(np.arange(len(within)), replace=False, size=Nsamp*Nclus_avail)].reshape(Nclus_avail, Nsamp)[:Nclus, :]
@@ -1427,10 +1399,10 @@ if __name__ == "__main__":
 			fig.savefig('emu_cov_'+date+'.png',dpi=150,bbox_inches='tight')
 			mp.close()
 
-		calc_errs(recon, recon_err, sc_sig=2.5)
+		calc_errs(recon, recon_err, sc_sig=3.0)
 		plot_cross_valid(fname='cross_validate_ps.png')
-		cv_plots(fname='cv_plots.png')
-		plot_error_dist(fname='cv_err_dists.png', denom='yerr', xlim=(-2,2))
+		cv_plots(fname='cv_plots.png', frac_err_vec=log_frac_err_sc_vec, frac_yerr_vec=std_obserr_sc_vec, cbmax1=0.5)
+		plot_error_dist(fname='cv_err_dists.png', frac_err=log_frac_err, std_vec=exp_log_frac_err_sc_vec, xlim=(-2.5,2.5))
 		plot_data_tr_dist(fname='data_tr_dists.png')
 
 	if cross_validate_like == True:
@@ -1442,6 +1414,7 @@ if __name__ == "__main__":
 					kwargs_tr=kwargs_tr, lnlike_kwargs=lnprob_kwargs, kfold_Nclus=Nclus, kfold_Nsamp=Nsamp, rando=rando)
 		else:
 			e_like, t_like = S.cross_validate(grid_cv,data_cv,lnlike_kwargs=lnprob_kwargs)#,also_record=['lnlike_emu_err'])
+
 
 		fig = mp.figure(figsize=(5,5))
 		ax = fig.add_subplot(111)
@@ -1530,12 +1503,11 @@ if __name__ == "__main__":
 				fig=mp.figure(figsize=(10,10))
 				fig.subplots_adjust(hspace=0.1)
 
-				sel = np.array(reduce(operator.mul,np.array([grid_cv.T[i]==p_true[i] if i != p else np.ones(len(grid_cv.T[i])) for i in range(N_params)])),bool)
-				sort = np.argsort(grid_cv.T[p][sel])
-				grid_x = grid_cv.T[p][sel][sort]
-				pred_weight = weights.T[plot_mode][sel][sort]
-				true_weight = weights_true.T[plot_mode][sel][sort]
-				pred_weight_err = weights_err.T[plot_mode][sel][sort]
+				#sel = np.array(reduce(operator.mul,np.array([grid_cv.T[i]==p_true[i] if i != p else np.ones(len(grid_cv.T[i])) for i in range(N_params)])),bool)
+				grid_x = grid_od[p].T[p]
+				pred_weight = weight_cross[p].T[plot_mode]
+				true_weight = weight_true_cross[p].T[plot_mode]
+				pred_weight_err = weight_err_cross[p].T[plot_mode]
 
 				ax1 = fig.add_subplot(gs1)
 				ax1.grid(True)
@@ -1572,19 +1544,18 @@ if __name__ == "__main__":
 		gs2 = gs[3,:]
 
 		p_cent = np.array(map(np.median, grid_cv.T))
+
 		for p in plot_params:
-			
 			for kbin in plot_kbins:
 				# Plot regression of weights
 				fig=mp.figure(figsize=(8,8))
 				fig.subplots_adjust(hspace=0.1)
 
-				sel = np.array(reduce(operator.mul,np.array([grid_cv.T[i]==p_cent[i] if i != p else np.ones(len(grid_cv.T[i])) for i in range(N_params)])),bool)
-				sort = np.argsort(grid_cv.T[p][sel])
-				grid_x = grid_cv.T[p][sel][sort]
-				pred_ps = recon.T[kbin][sel][sort]
-				true_ps = data_cv.T[kbin][sel][sort]
-				pred_ps_err = recon_err.T[kbin][sel][sort]
+				#sel = np.array(reduce(operator.mul,np.array([grid_cv.T[i]==p_cent[i] if i != p else np.ones(len(grid_cv.T[i])) for i in range(N_params)])),bool)
+				grid_x = grid_od[p].T[p]
+				pred_ps = recon_cross[p].T[kbin]
+				true_ps = data_od[p].T[kbin]
+				pred_ps_err = recon_err_cross[p].T[kbin]
 				yz = O.row2mat(yz_data,row2mat=False)[kbin]
 
 				ax1 = fig.add_subplot(gs1)
@@ -1592,12 +1563,13 @@ if __name__ == "__main__":
 				a0 = ax1.fill_between(grid_x,pred_ps+pred_ps_err,pred_ps-pred_ps_err,color='b',alpha=0.2)
 				a1, = ax1.plot(grid_x,true_ps,'r.',markersize=14,alpha=0.3)
 				a2, = ax1.plot(grid_x,pred_ps,'k',linewidth=2.5)
+				#ax1.set_yscale('log')
 				ax1.set_ylabel(r'$\Delta^{2}$',fontsize=18)
 				ax1.legend([a1,a2],[r'True PS',r'Prediction'])
 				ylim = None,None
 				ax1.set_ylim(ylim)
 				ax1.tick_params(axis='x',which='both',bottom='off',labelbottom='off')
-				ax1.annotate(r'$k = '+str(np.round(float(yz[0])/0.7,2))+'\ h\ Mpc^{-1}$\n$z = '+yz[1]+'$',xy=(0.05,0.85),xycoords='axes fraction',fontsize=17)
+				ax1.annotate(r'$k = '+str(np.round(float(yz[0]),2))+'\ \mathrm{h\ Mpc}^{-1}$\n$z = '+yz[1]+'$',xy=(0.05,0.85),xycoords='axes fraction',fontsize=17)
 
 				ax2 = fig.add_subplot(gs2)
 				ax2.grid(True)
@@ -1624,7 +1596,7 @@ if __name__ == "__main__":
 		# Iterate through redshifts
 		for z in z_arr:
 			# Plot
-			fig = mp.figure(figsize=(8,8))
+			fig = mp.figure(figsize=(5,5))
 			ax = fig.add_subplot(111)
 			ax.grid(True,which='both')
 
@@ -1632,22 +1604,24 @@ if __name__ == "__main__":
 			pspec_ratio = []
 			for i in range(len(grid_cv)):
 				pspec_ratio.append(O.track(['ps'],arr=O.row2mat(recon[i]))[z]/O.track(['ps'],arr=O.row2mat(data_cv[i]))[z])
-				ax.plot(O.track(['ps'],arr=O.xdata)[z],pspec_ratio[-1],color='b',alpha=0.2)
+				ax.plot(O.track(['ps'],arr=O.xdata)[z],pspec_ratio[-1],color='r',alpha=0.2,linewidth=1.5,zorder=1)
 
 			pspec_ratio = np.array(pspec_ratio)
 			loc = np.array(map(astats.biweight_location,pspec_ratio.T))
 			stdev = np.array(map(astats.biweight_midvariance,pspec_ratio.T))
 
-			ax.fill_between(O.track(['ps'],arr=O.xdata)[z],loc-stdev,loc+stdev,color='k',alpha=0.75)
-			ax.plot(O.track(['ps'],arr=O.xdata)[z],loc,color='k',alpha=0.65,linewidth=2)
+			ax.fill_between(O.track(['ps'],arr=O.xdata)[z],loc-stdev,loc+stdev,color='grey',alpha=0.5,zorder=2)
+			ax.plot(O.track(['ps'],arr=O.xdata)[z],loc-stdev,color='k',alpha=0.75,linewidth=2,zorder=2)
+			ax.plot(O.track(['ps'],arr=O.xdata)[z],loc+stdev,color='k',alpha=0.75,linewidth=2,zorder=2)
+			ax.plot(O.track(['ps'],arr=O.xdata)[z],loc,color='k',alpha=0.75,linewidth=1,zorder=3)
 
-			ax.annotate(r'$z='+str(z_array[z])+'$',xy=(0.1,0.8),xycoords='axes fraction',fontsize=18)
+			ax.annotate(r'$z='+str(z_array[z])+'$',xy=(0.1,0.8),xycoords='axes fraction',fontsize=18,bbox=dict(fc="0.95"))
 
 			ax.set_xlim(1e-1,1)
 			ax.set_ylim(0.5,1.5)
 			ax.set_xscale('log')
-			ax.set_xlabel(r'$k\ (Mpc^{-1})$',fontsize=18)
-			ax.set_ylabel(r'$\hat{\Delta^{2}}/\Delta^{2}$',fontsize=18)
+			ax.set_xlabel(r'$k\ (\mathrm{h\ Mpc}^{-1})$',fontsize=18)
+			ax.set_ylabel(r'$\widehat{\Delta^{2}}/\Delta^{2}$',fontsize=18)
 
 			fig.savefig('ps_frac_recon_z'+str(z_array[z])+'.png',dpi=200,bbox_inches='tight')
 			mp.close()
@@ -1742,16 +1716,7 @@ if __name__ == "__main__":
 
 	#pool = pathos.multiprocessing.Pool(5) #emcee.utils.MPIPool()
 	#sampler_kwargs.update({'pool':pool})
-
 	S.emcee_init(nwalkers, ndim, S.lnprob, lnprob_kwargs=lnprob_kwargs, sampler_kwargs=sampler_kwargs, PT=parallel_temp, ntemps=ntemps)
-
-	# Initialize Walker positions
-	if parallel_temp == True:
-		pos = np.array([np.copy(grid_cv[np.random.choice(np.arange(len(grid_cv)), replace=False, size=nwalkers)]) for i in range(ntemps)])
-	else:
-		#pos = np.array(map(lambda x: x + x*stats.norm.rvs(0,0.05,nwalkers),p_true)).T
-		pos = np.copy(grid_tr[np.random.choice(np.arange(len(grid_tr)), replace=False, size=nwalkers)])
-
 
 	# Add priors (other than flat priors)
 	if add_priors == True:
@@ -1759,9 +1724,10 @@ if __name__ == "__main__":
 		#planck_cov = np.loadtxt('base_TTTEEE_lowl_plik.covmat')[[0,1,5]].T[[0,1,5]].T
 		select_arr = np.array([6,7,0,1,5])#,3])
 		planck_cov = np.loadtxt('new_planck_cov.tab')[select_arr[:,None],select_arr]
-		std_multiplier = 1.0
-		prior_cent = np.array(map(lambda x: common_priors.cmb_priors1[x], ['sigma8','H0','ombh2','omch2','ns']))
-		prior_cent[1] /= 100.0
+		std_multiplier = 1
+		#prior_cent = np.array(map(lambda x: common_priors.cmb_priors1[x], ['sigma8','H0','ombh2','omch2','ns']))
+		#prior_cent[1] /= 100.0
+		prior_cent = np.copy(p_true[:5])
 		prior_cent = np.concatenate([prior_cent, map(astats.biweight_location, E.grid_tr.T[5:])])
 
 		# Add non-correlated Gaussian Priors
@@ -1788,7 +1754,16 @@ if __name__ == "__main__":
 			S.lnprior_funcs[prior_indices[i]] = S.create_covarying_gauss_lnprior(prior_cent,prior_prec,\
 					index=prior_indices[i],return_func=True)
 
-	print_time()
+	# Initialize Walker positions
+	if parallel_temp == True:
+		pos = np.array([np.copy(grid_cv[np.random.choice(np.arange(len(grid_cv)), replace=False, size=nwalkers)]) for i in range(ntemps)])
+	else:
+		#pos = np.array(map(lambda x: x + x*stats.norm.rvs(0,0.05,nwalkers),p_true)).T
+		#pos = np.copy(grid_tr[np.random.choice(np.arange(len(grid_tr)), replace=False, size=nwalkers)])
+		pos = stats.multivariate_normal.rvs(mean=prior_cent[:5], cov=prior_cov[:5,:5], size=nwalkers)
+		pos = np.concatenate([pos.T,\
+			np.array([stats.uniform.rvs(loc=prior_cent[i]-param_width[i]/2.5,scale=param_width[i]/1.25,size=nwalkers) for i in range(5,11)])]).T
+
 	if time_sampler == True:
 		print_message('...timing sampler')
 		ipython.magic("timeit -r 3 S.samp_drive(pos,step_num=1,burn_num=0)")
@@ -1798,7 +1773,8 @@ if __name__ == "__main__":
 		print_time()
 		# Drive Sampler
 		burn_num	= 0
-		step_num	= 5000
+		step_num	= 2000
+		message		= "calibrate=True"
 
 		print_message('...driving with burn_num='+str(burn_num)+', step_num='+str(step_num),type=0)
 		S.samp_drive(pos,step_num=step_num,burn_num=burn_num)
@@ -1807,11 +1783,17 @@ if __name__ == "__main__":
 		print("Mean acceptance fraction: {0:.3f}".format(np.mean(S.sampler.acceptance_fraction)))
 
 		if save_chains == True:
-			f = open('samp_chains_'+date+'.pkl','wb')
-			output = pkl.Pickler(f)
-			output.dump({'chain':S.sampler.chain,'burn_num':burn_num,'step_num':step_num,\
-						'acceptance_frac':np.mean(S.sampler.acceptance_fraction),'ndim':S.ndim})
-			f.close()
+			with open('samp_chains_'+date+'.pkl','wb') as f:
+				output = pkl.Pickler(f)
+				output.dump({'chain':S.sampler.chain,'burn_num':burn_num,'step_num':step_num,\
+							'acceptance_frac':np.mean(S.sampler.acceptance_fraction),'ndim':S.ndim,
+							'p_true':p_true, 'prior_cov':prior_cov, 'prior_cent':prior_cent})
+
+		if edit_log == True:
+			with open('mcmc_log.txt','a') as f:
+				f.write('\n'+date+':\n'+'-'*17+'\n**'+message+'\n')
+
+
 
 		print_time()
 
@@ -1823,7 +1805,7 @@ if __name__ == "__main__":
 		chain_d = input.load()
 		f.close()
 		chain = chain_d['chain']
-		thin = 10
+		thin = 50
 		samples = chain[:,500::thin,:].reshape((-1,chain_d['ndim']))
 
 	if trace_plots == True:
@@ -1838,7 +1820,7 @@ if __name__ == "__main__":
 			ax = fig.add_subplot(3,4,i+1)
 			ax.set_ylabel(p_latex[i],fontsize=20)
 			mp.tick_params(which='both',right='off',top='off')
-			for j in range(len(chain))[::nwalkers/50]:
+			for j in range(len(chain))[::nwalkers/200]:
 				ax.plot(chain[j,:,i],color='k',alpha=0.1)
 				ax.set_ylim(param_bounds[i])
 			ax.axhline(p_true[i],color='r',alpha=0.5,linewidth=3)
@@ -1876,7 +1858,7 @@ if __name__ == "__main__":
 		fig = mp.figure(figsize=(16,8))
 		fig.subplots_adjust(wspace=0.4,hspace=0.2)
 
-		maxlag = 250
+		maxlag = 200
 		thin = 1
 		for i in range(N_params):
 			ax = fig.add_subplot(3,4,i+1)
@@ -1884,7 +1866,7 @@ if __name__ == "__main__":
 			ax.axhline(0,color='k',alpha=0.5)
 			mp.tick_params(which='both',right='off',top='off')
 			ax.set_ylabel(p_latex[i],fontsize=20)
-			series = chain[10,200:,:].T[i][::thin]
+			series = chain[235,1000:,:].T[i][::thin]
 			if np.isnan(astats.biweight_location(series)) == True:
 				trend = np.median(series)
 			else:
@@ -1906,7 +1888,7 @@ if __name__ == "__main__":
 		p_eps = [0.1 for i in range(5)] + [0.4 for i in range(6)]
 		p_eps = np.array(map(astats.biweight_midvariance,samples.T))*4
 		p_lims = None #[[None,None] for i in range(N_params)]
-		p_lims = [[fid_params[i]-p_eps[i],fid_params[i]+p_eps[i]] for i in range(N_params)]
+		p_lims = [[p_true[i]-p_eps[i],p_true[i]+p_eps[i]] for i in range(N_params)]
 		p_lims = [[grid_tr.T[i].min(), grid_tr.T[i].max()] for i in range(N_params)]
 
 		label_kwargs = {'fontsize':26}
@@ -1941,6 +1923,14 @@ if __name__ == "__main__":
 			p1 = matplotlib.patches.Rectangle([0,0],0,0,color='green',alpha=0.1)
 			p2 = matplotlib.patches.Rectangle([0,0],0,0,color='orange',alpha=0.1)
 			fig.legend([p0,p1,p2],['Cosmo-Cosmo','Cosmo-Astro','Astro-Astro'],fontsize=60,loc='upper center',frameon=False)
+
+		add_prior = False
+		if add_prior == True:
+			axes = np.array(fig.axes).reshape(11,11).T
+			for i in range(N_params):
+				for j in range(i+1, N_params):
+					plot_ellipse(cov=prior_cov[[i,j]].T[[i,j]], x_cent=prior_cent[i], y_cent=prior_cent[j],
+						ax=axes[i,j], plot_kwargs={'color':'m','zorder':5}, mass_level=0.95)
 
 		add_fisher = False
 		load_fisher = False
@@ -2012,10 +2002,45 @@ if __name__ == "__main__":
 					_ = ax.set_xticks(ax.get_xticks()[1:][::2])
 				_ = [tl.set_rotation(30) for tl in ax.get_xticklabels()]
 
-		fig.savefig('tri_plot_'+date+'.png',dpi=100,bbox_inches='tight')
+		fig.savefig('tri_plot_'+date+'.png',dpi=150,bbox_inches='tight')
 		mp.close()
 		print_time()
 
+	plot_prior = False
+	if plot_prior == True:
+		fig = mp.figure(figsize=(12,3))
+		fig.subplots_adjust(wspace=0.3,hspace=0.1)
+
+		j = 0
+		for i in range(3):
+			ax = fig.add_subplot(1,3,i+1)
+			ax.grid(True)
+			plot_ellipse(cov=planck_cov[[j,j+1]].T[[j,j+1]], x_cent=prior_cent[j], y_cent=prior_cent[j+1],
+							ax=ax, plot_kwargs={'color':'darkblue','linewidth':1.5,'alpha':0.75}, mass_level=0.68)
+			plot_ellipse(cov=planck_cov[[j,j+1]].T[[j,j+1]], x_cent=prior_cent[j], y_cent=prior_cent[j+1],
+							ax=ax, plot_kwargs={'color':'darkblue','linewidth':1.5,'alpha':0.75}, mass_level=0.95)
+			plot_ellipse(cov=prior_cov[[j,j+1]].T[[j,j+1]], x_cent=prior_cent[j], y_cent=prior_cent[j+1],
+							ax=ax, plot_kwargs={'color':'darkorange','linewidth':1.5,'alpha':0.75}, mass_level=0.68)
+			plot_ellipse(cov=prior_cov[[j,j+1]].T[[j,j+1]], x_cent=prior_cent[j], y_cent=prior_cent[j+1],
+							ax=ax, plot_kwargs={'color':'darkorange','linewidth':1.5,'alpha':0.75}, mass_level=0.95)
+
+			ax.set_xlabel(p_latex[j])
+			ax.set_ylabel(p_latex[j+1])
+			ax.set_xlim(prior_cent[j]-param_width[j]/2.0, prior_cent[j]+param_width[j]/2.0)
+			ax.set_ylim(prior_cent[j+1]-param_width[j+1]/2.0, prior_cent[j+1]+param_width[j+1]/2.0)	
+			[tl.set_rotation(30) for tl in ax.get_xticklabels()]
+			if i == 0:
+				j += 1
+			else:
+				j += 2
+
+			if i == 0:
+				p1 = matplotlib.lines.Line2D([0],[0],color='darkblue',linewidth=3)
+				p0 = matplotlib.lines.Line2D([0],[0],color='darkorange',linewidth=3)
+				ax.legend([p0,p1],['Prior Covariance', 'Planck Covariance'],fontsize=11, loc=0)
+
+		fig.savefig('cosmo_priors_'+date+'.png', dpi=150, bbox_inches='tight')
+		mp.close()
 
 	if plot_recplot == True:
 		print_message('...making rec plot')
@@ -2032,13 +2057,14 @@ if __name__ == "__main__":
 
 		fig = mp.figure(figsize=(13,8))
 		fig.subplots_adjust(wspace=0.0, hspace=0.0)
+		bins = 50
 		j = 0
 		for i in range(6):
 			for k in range(3):
 				ax = fig.add_subplot(gs[sub1[i,k]:sub2[i,k],sub3[i,k]:sub4[i,k]])
 				if k == 0:
 					ax.plot(grid_tr.T[j],grid_tr.T[j+1],color='steelblue',marker=',',linestyle='',alpha=0.75,zorder=0)
-					corner.hist2d(samples.T[j], samples.T[j+1], ax=ax, color='k', bins=40, smooth=0.5, levels=levels,
+					corner.hist2d(samples.T[j], samples.T[j+1], ax=ax, color='k', bins=bins, smooth=0.7, levels=levels,
 								plot_datapoints=False, range=np.array([lims[j],lims[j+1]]), zorder=1)
 					ax.scatter(p_true[j], p_true[j+1], color='orangered', marker='s', edgecolor='', s=60, zorder=2)
 					ax.axvline(p_true[j], color='orangered', linewidth=1.5, alpha=0.75)
@@ -2054,13 +2080,13 @@ if __name__ == "__main__":
 									ax=ax, plot_kwargs={'color':'m','zorder':5}, mass_level=0.95)
 				if k == 1:
 					ax.axis('off')
-					hout = ax.hist(samples.T[j], histtype='step', color='k', linewidth=1.5, bins=20, range=np.array(lims[j]))
+					hout = ax.hist(samples.T[j], histtype='step', color='k', linewidth=1.5, bins=bins, range=np.array(lims[j]))
 					ax.axvline(p_true[j], color='orangered', linewidth=1.5, alpha=0.75, ymax=0.9)
 					ax.set_xlim(lims[j])
 					ax.set_ylim(0,hout[0].max()*1.15)
 				if k == 2:
 					ax.axis('off')
-					hout = ax.hist(samples.T[j+1], histtype='step', color='k', linewidth=1.5, bins=20, range=np.array(lims[j+1]), orientation='horizontal')
+					hout = ax.hist(samples.T[j+1], histtype='step', color='k', linewidth=1.5, bins=bins, range=np.array(lims[j+1]), orientation='horizontal')
 					ax.axhline(p_true[j+1], color='orangered', linewidth=1.5, alpha=0.75, xmax=0.9)
 					ax.set_xlim(0,hout[0].max()*1.15)
 					ax.set_ylim(lims[j+1])
@@ -2069,7 +2095,7 @@ if __name__ == "__main__":
 			else:
 				j += 2
 
-		fig.savefig('recplot_'+date+'.png',dpi=150,bbox_inches='tight',transparent=True)
+		fig.savefig('recplot_'+date+'.png',dpi=150,bbox_inches='tight')
 		mp.close()
 		print_time()
 
@@ -2121,33 +2147,33 @@ if __name__ == "__main__":
 		mp.close()
 
 	if plot_marghist == True:
-		gs = gridspec.GridSpec(12,8)
+		gs = gridspec.GridSpec(11,9)
 		sub1 = np.array([np.arange(0,10,3) for i in range(3)]).T.ravel()
 		sub2 = np.array([np.arange(2,12,3) for i in range(3)]).T.ravel()
-		sub3 = np.array([np.arange(0,10,3) for i in range(4)]).ravel()
-		sub4 = np.array([np.arange(3,13,3) for i in range(4)]).ravel()
+		sub3 = np.array([np.arange(0,7,3) for i in range(4)]).ravel()
+		sub4 = np.array([np.arange(3,10,3) for i in range(4)]).ravel()
 
-		fig = mp.figure(figsize=(9,6))
+		fig = mp.figure(figsize=(9,11))
 		fig.subplots_adjust(wspace=0.2,hspace=0.05)
 
 		for i in range(N_params):
 			# init axes
 			ax = fig.add_subplot(gs[sub1[i+1]:sub2[i+1],sub3[i+1]:sub4[i+1]])
 			mp.tick_params(which='both',left='off',right='off')
-			ax.set_xlabel(p_latex[i],fontsize=18)
+			ax.set_xlabel(p_latex[i],fontsize=20)
+
 			# fill in prior and posterior
-			pwidth = np.max(np.abs(samples.T[i]-prior_cent[i]))
-			pbound = np.array([prior_cent[i]-pwidth, prior_cent[i]+pwidth])
+			pbound = np.array([prior_cent[i]-param_width[i]/2, prior_cent[i]+param_width[i]/2])
 			x = np.linspace(pbound[0], pbound[1], 200)
 			y = stats.norm.pdf(x, loc=prior_cent[i], scale=np.sqrt(prior_cov.diagonal()[i]))
 			hist_cent = astats.biweight_location(samples.T[i])
 			patches = ax.hist(samples.T[i]+(prior_cent[i]-hist_cent), color='dodgerblue', linewidth=1.5, alpha=0.8, histtype='step',
-							range=(pbound[0],pbound[1]), bins=30, normed=True, zorder=2)
+							range=(pbound[0],pbound[1]), bins=80, normed=True, zorder=2)
 			y *= (patches[0].max()/y.max())
-			ax.plot(x, y, color='darkred', linewidth=2.5, alpha=0.75, zorder=1)
+			ax.plot(x, y, color='darkred', linewidth=1.5, alpha=0.75, zorder=1)
 
 			ax.tick_params('both',length=6)
-			_ = [tl.set_size(9) for tl in ax.get_xticklabels()]
+			_ = [tl.set_size(14) for tl in ax.get_xticklabels()]
 			_ = [tl.set_rotation(0) for tl in ax.get_xticklabels()]
 			[tl.set_visible(False) for tl in ax.get_xticklabels()[::2]]
 			ax.set_yticklabels([])
@@ -2158,7 +2184,7 @@ if __name__ == "__main__":
 		p1 = matplotlib.lines.Line2D([0],[0],color='dodgerblue',linewidth=3)
 		ax = fig.add_subplot(gs[sub1[0]:sub2[0],sub3[0]:sub4[0]])
 		mp.axis('off')
-		ax.legend([p0,p1],[r'Prior',r'Posterior'],fontsize=15,frameon=False)
+		ax.legend([p0,p1],[r'Prior',r'Posterior'],fontsize=20,frameon=False)
 
 		fig.savefig('marghist_'+date+'.png',dpi=200,bbox_inches='tight')
 		mp.close()
