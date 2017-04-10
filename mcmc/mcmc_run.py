@@ -130,14 +130,14 @@ if __name__ == "__main__":
 		RandomState = 1
 
 		# Choose Training Set
-		TS_data = lhsfs_hera331_data
-		#TS_data = lhs_data
+		#TS_data = lhsfs_hera331_data
+		TS_data = lhs_data
 
 		# Separate Data
 		tr_len = 582
-		#tr_len = 16344
+		tr_len = 16344
 		rd = np.random.RandomState(RandomState)
-		rando = rd.choice(np.arange(tr_len),size=500,replace=False)
+		rando = rd.choice(np.arange(tr_len),size=16300,replace=False)
 		rando = np.array(map(lambda x: x in rando,np.arange(tr_len)))
 
 		tr_name = TS_data['name']
@@ -149,34 +149,10 @@ if __name__ == "__main__":
 		data_tr = data_tr.T[keep].T
 
 		# Add other datasets
-		add_other_data = True
+		add_other_data = False
 		if add_other_data == True:
 			# Choose Training Set
 			TS_data = gauss_hera127_data
-
-			# Separate Data
-			rd = np.random.RandomState(RandomState)
-			tr_len = 5000
-			rando = rd.choice(np.arange(tr_len),size=3000,replace=False)
-			rando = np.array(map(lambda x: x in rando,np.arange(tr_len)))
-
-			tr_name += '/'+TS_data['name']
-			data_tr2 = TS_data['data'][np.argsort(TS_data['indices'])][rando]
-			grid_tr2 = TS_data[ 'gridf'][np.argsort(TS_data['indices'])][rando]
-			direcs_tr2 = TS_data['direcs'][np.argsort(TS_data['indices'])][rando]
-			meta_tr2 = TS_data['metadata']
-			keep = np.array(map(lambda x: x in keep_meta, meta_tr2))
-			data_tr2 = data_tr2.T[keep].T
-
-			data_tr = np.concatenate([data_tr,data_tr2])
-			grid_tr = np.concatenate([grid_tr,grid_tr2])
-			direcs_tr = np.concatenate([direcs_tr,direcs_tr2])
-
-		# Add other datasets
-		add_other_data = True
-		if add_other_data == True:
-			# Choose Training Set
-			TS_data = gauss_hera331_data
 
 			# Separate Data
 			rd = np.random.RandomState(RandomState)
@@ -196,12 +172,36 @@ if __name__ == "__main__":
 			grid_tr = np.concatenate([grid_tr,grid_tr2])
 			direcs_tr = np.concatenate([direcs_tr,direcs_tr2])
 
+		# Add other datasets
+		add_other_data = False
+		if add_other_data == True:
+			# Choose Training Set
+			TS_data = gauss_hera331_data
+
+			# Separate Data
+			rd = np.random.RandomState(RandomState)
+			tr_len = 5000
+			rando = rd.choice(np.arange(tr_len),size=5000,replace=False)
+			rando = np.array(map(lambda x: x in rando,np.arange(tr_len)))
+
+			tr_name += '/'+TS_data['name']
+			data_tr2 = TS_data['data'][np.argsort(TS_data['indices'])][rando]
+			grid_tr2 = TS_data[ 'gridf'][np.argsort(TS_data['indices'])][rando]
+			direcs_tr2 = TS_data['direcs'][np.argsort(TS_data['indices'])][rando]
+			meta_tr2 = TS_data['metadata']
+			keep = np.array(map(lambda x: x in keep_meta, meta_tr2))
+			data_tr2 = data_tr2.T[keep].T
+
+			data_tr = np.concatenate([data_tr,data_tr2])
+			grid_tr = np.concatenate([grid_tr,grid_tr2])
+			direcs_tr = np.concatenate([direcs_tr,direcs_tr2])
+
 		print "...added training set: "+tr_name+" of length: "+str(len(data_tr))
 
 		# Choose Cross Validation Set
-		CV_data 		= gauss_hera331_data
-		TS_remainder	= True
-		use_remainder	= True
+		CV_data 		= cross_valid_data
+		TS_remainder	= False
+		use_remainder	= False
 
 		# Separate Data
 		if TS_remainder == True:
@@ -227,7 +227,7 @@ if __name__ == "__main__":
 		data_cv = data_cv.T[keep].T
 
 		# Get Fiducial Data
-		feed_fid = False
+		feed_fid = True
 		if feed_fid == True:
 			#fid_params = fiducial_data['fid_params']
 			#fid_data = fiducial_data['fid_data']
@@ -351,7 +351,7 @@ if __name__ == "__main__":
 
 
 	### Variables for Emulator ###
-	N_modes = 40
+	N_modes = 30
 	N_params = len(params)
 	N_data = 660
 	N_samples = len(data_tr)
@@ -549,7 +549,7 @@ if __name__ == "__main__":
 			if n == 'sense_PSerrs':
 				# Cut out sense_PSerrs / sense_PSdata > x% and high k-modes
 				err_thresh = 1e3        # 1000%
-				hi_k_cut = 2.0
+				hi_k_cut = 1.0
 				small_errs = np.where(prep_mock_data['sense_PSerrs'][i] / prep_mock_data['sense_PSdata'][i] < err_thresh)[0]
 				hi_k = np.where(prep_mock_data['sense_kbins'][i][small_errs] < hi_k_cut)[0]
 				prep_mock_data['sense_kbins'][i] = prep_mock_data['sense_kbins'][i][small_errs][hi_k]
@@ -753,19 +753,19 @@ if __name__ == "__main__":
 	fast = True
 	compute_klt = False
 	save_chol = False
-	LAYG = False
+	LAYG = True
 
 	# First Guess of GP Hyperparameters
-	ell = np.array([[5.0 for i in range(N_params)] for i in range(N_modes)]) / np.linspace(1.0,5.0,N_modes).reshape(N_modes,1)
-	ell_bounds = np.array([np.array([ell[i]*0.2,ell[i]*5.0]).T for i in range(N_modes)])
+	ell_guess = np.array([[100.0 for i in range(N_params)] for i in range(N_modes)]) / np.linspace(1.0,1.0,N_modes).reshape(N_modes,1)
+	ell_bounds = np.array([np.array([ell_guess[i]*0.2,ell_guess[i]*5.0]).T for i in range(N_modes)])
 	ell_bounds = np.array([np.array([[0.1,100] for j in range(N_params)]) for i in range(N_modes)])
 
-	alpha = 1e-6 * np.ones(N_modes)
-	alpha_bounds = np.array([[1e-8,1e-2] for i in range(N_modes)])
+	alpha_guess = 1e-8 * np.ones(N_modes)
+	alpha_bounds = np.array([[1e-10,1e-2] for i in range(N_modes)])
 
 	# Insert HP into GP
-	kernels = map(lambda x: gp.kernels.RBF(*x[:2]) + gp.kernels.WhiteKernel(*x[2:]), zip(ell,ell_bounds,alpha,alpha_bounds))
-#	kernels = map(lambda x: gp.kernels.RBF(x[0],x[1]), zip(ell,ell_bounds))
+	kernels = map(lambda x: gp.kernels.RBF(*x[:2]) + gp.kernels.WhiteKernel(*x[2:]), zip(ell_guess,ell_bounds,alpha_guess,alpha_bounds))
+#	kernels = map(lambda x: gp.kernels.RBF(x[0],x[1]), zip(ell_guess,ell_bounds))
 
 	if use_pca == False:
 		if trans_lnlike == False:
@@ -785,17 +785,17 @@ if __name__ == "__main__":
 	E.group_eigenmodes(emode_variance_div=emode_variance_div)
 
 	names       = ['kernel','copy_X_train','optimizer','n_restarts_optimizer','alpha']
-	optimize    = 'fmin_l_bfgs_b'
+	optimize    = None#'fmin_l_bfgs_b'
 	n_restarts  = np.array(np.linspace(10,3,E.N_modes),int)
 	alpha		= 1e-8
 	gp_kwargs_arr = np.array([dict(zip(names,[kernels[i],False,optimize,n_restarts[i],alpha])) for i in map(lambda x: x[0],E.modegroups)])
 
 	### Load HyperParameters ###
-	load_hype	= True
+	load_hype	= False
 	load_obs	= True
 	new_tr		= True
 	if load_hype == True:
-		hp_fname = 'forecast_hyperparams36.pkl'
+		hp_fname = 'forecast_hyperparams30.pkl'
 #		hp_fname = 'hypersolve_1D.pkl'
 		with open(hp_fname,'rb') as f:
 			print("...loading previous hyperparameter file: "+hp_fname)
@@ -862,7 +862,7 @@ if __name__ == "__main__":
 
 	param_width = np.array([grid_tr.T[i].max() - grid_tr.T[i].min() for i in range(N_params)])
 
-	eps = -0.0001
+	eps = -0.1
 
 	param_bounds = np.array([[grid_tr.T[i].min()+param_width[i]*eps,grid_tr.T[i].max()-param_width[i]*eps]\
 								 for i in range(N_params)])
@@ -873,7 +873,7 @@ if __name__ == "__main__":
 	add_model_cov = False
 	ndim = N_params
 	nwalkers = 300
-	vectorize_predict = True
+	vectorize_predict = False
 
 	sampler_init_kwargs = {'use_Nmodes':use_Nmodes,'param_bounds':param_bounds,'param_hypervol':param_hypervol,
 							'nwalkers':nwalkers,'ndim':ndim,'N_params':ndim,'z_len':z_len}
@@ -886,6 +886,7 @@ if __name__ == "__main__":
 		save_hype		= False
 		kfold_regress	= False
 		hypersolve_1D	= False
+		hpsolve_cross	= False
 		SoD				= False
 		hyper_filename	= None
 		if kfold_regress == True:
@@ -946,6 +947,35 @@ if __name__ == "__main__":
 			save_hype = True
 			print_time()
 
+		# cross hyperparameter regression
+		if hpsolve_cross == True:
+			print_message('...running hpsolve_cross')
+			hyper_filename = 'hpsolve_cross.pkl'
+			print_time()
+			bounds = [0.1,100]
+			kernels = map(lambda x: gp.kernels.RBF(*x[:2]) + gp.kernels.WhiteKernel(*x[2:]), zip(ell_guess,ell_bounds,alpha_guess,alpha_bounds))
+			names       = ['kernel','copy_X_train','optimizer','n_restarts_optimizer','alpha']
+			optimize    = 'fmin_l_bfgs_b'
+			n_restarts  = np.array(np.linspace(5,1,E.N_modes),int)
+			alpha       = 1e-10
+			gp_kwargs_arr = np.array([dict(zip(names,[kernels[i],False,optimize,n_restarts[i],alpha])) for i in map(lambda x: x[0],E.modegroups)])
+			kwargs_tr['gp_kwargs_arr'] = gp_kwargs_arr
+			data_cross = data_od.reshape(550,data_od.shape[-1])
+			grid_cross = grid_od.reshape(550,11)
+			E.train(data_cross,grid_cross,fid_data=E.fid_data,fid_params=E.fid_params,**kwargs_tr)
+
+			ell = np.array(map(lambda x: np.exp(x.kernel_.theta[:-1]), E.GP))
+			alpha = np.array(map(lambda x: np.exp(x.kernel_.theta[-1]), E.GP))
+			kernels = np.array([gp.kernels.RBF(length_scale=ell[i])+gp.kernels.WhiteKernel(alpha[i]) for i in range(len(ell))])
+			names       = ['kernel','copy_X_train','optimizer','n_restarts_optimizer','alpha']
+			optimize    = None
+			n_restarts  = 0
+			alpha       = 1e-10
+			gp_kwargs_arr = np.array([dict(zip(names,[kernels[i],False,optimize,n_restarts,alpha])) for i in map(lambda x: x[0],E.modegroups)])
+			kwargs_tr['gp_kwargs_arr'] = gp_kwargs_arr
+			save_hype = True
+			print_time()
+
 		if SoD == True:
 			# Sparse approximation to hyperparameter regression using Subset of Data approach
 			print_message('...running Subset of Data regression')
@@ -960,7 +990,10 @@ if __name__ == "__main__":
 		# Train!
 		print_message('...training emulator')
 		print_time()
-		E.train(data_tr,grid_tr,fid_data=E.fid_data,fid_params=E.fid_params,**kwargs_tr)
+		if LAYG == True:
+			E.train(data_tr[:k],grid_tr[:k],fid_data=E.fid_data,fid_params=E.fid_params,**kwargs_tr)
+		else:
+			E.train(data_tr,grid_tr,fid_data=E.fid_data,fid_params=E.fid_params,**kwargs_tr)
 		print_time()
 
 		# Print out fitted hyperparameters
@@ -1306,10 +1339,10 @@ if __name__ == "__main__":
 		fig.savefig('eigenmodes.png',dpi=150,bbox_inches='tight')
 		mp.close()
 
-	use_tr_for_cv = False
+	use_tr_for_cv = True
 	if use_tr_for_cv == True:
-		within = np.where(np.array(map(la.norm,E.Xsph))<2.0)[0]
-		within = np.where(np.array(map(lambda x: np.abs(x).max(), E.Xsph))<1.375)[0]
+		within = np.where(np.array(map(la.norm,E.Xsph))<2.6)[0]
+		#within = np.where(np.array(map(lambda x: np.abs(x).max(), E.Xsph))<1.4)[0]
 		rando = np.random.choice(np.arange(len(within)), replace=False, size=1000)
 		data_cv = np.copy(data_tr)[within[rando]]
 		grid_cv = np.copy(grid_tr)[within[rando]]
@@ -1323,16 +1356,16 @@ if __name__ == "__main__":
 		grid_cv = grid_cv[within]
 
 	kfold_cv = False
-	calibrate = False
+	calibrate = True
 	add_lnlike_cov = True
 	if cross_validate_ps == True:
 		print_message('...cross validating power spectra')
 		if kfold_cv == True:
 			limit_range = True
-			Nclus = 4
-			Nsamp = 400
+			Nclus = 5
+			Nsamp = 300
 			if limit_range == True:
-				within = np.where(np.array(map(la.norm,E.Xsph)) < 2.75)[0]
+				within = np.where(np.array(map(la.norm,E.Xsph)) < 3.5)[0]
 				Nclus_avail = len(within) / Nsamp
 				rando = np.array([[False]*len(data_tr) for i in range(Nclus_avail)])
 				rand_samp = within[np.random.choice(np.arange(len(within)), replace=False, size=Nsamp*Nclus_avail)].reshape(Nclus_avail, Nsamp)[:Nclus, :]
@@ -1372,24 +1405,28 @@ if __name__ == "__main__":
 		if add_lnlike_cov == True:
 			print_message('...adding pspec cross validated errors to lnlike covariance as weights',type=0)
 			X = recon.T-data_cv.T
+			X = np.log(recon.T/data_cv.T)*O.ydata.reshape(-1,1)
 			ps_err_cov = cov_est(X)
-			O.cov += np.abs(np.eye(len(X))*np.array(map(astats.biweight_location,X)))**2 + ps_err_cov
+			cov_add = ps_err_cov
+			#cov_add = np.abs(np.eye(len(X))*np.array(map(astats.biweight_location,X)))**2 + ps_err_cov
+			S.O.cov += cov_add
+			S.O.invcov = la.inv(S.O.cov)
 
 			fig = mp.figure(figsize=(6,4))
 			fig.subplots_adjust(wspace=0.05,hspace=0.05)
 
-			cmap = matplotlib.cm.YlGnBu_r
+			cmap = matplotlib.cm.spectral_r
 			cmap.set_bad('grey',0.1)
-			hera_logcov = np.log10(np.abs(O.cov))
+			hera_logcov = np.log10(np.abs(S.O.cov-cov_add))
 			masked_cov = np.ma.array(hera_logcov, mask=hera_logcov==-np.inf)
 			ax1 = fig.add_subplot(121)
-			im1 = ax1.matshow(masked_cov, origin='lower', cmap=cmap, vmin=-5, vmax=4)
+			im1 = ax1.matshow(masked_cov, origin='lower', cmap=cmap, vmin=-3, vmax=4)
 			ax1.set_xticklabels([])
 			ax1.set_yticklabels([])
 			ax1.set_title(r'Telescope Sensitivity Covariance', fontsize=10)
 
 			ax2 = fig.add_subplot(122)
-			im2 = ax2.matshow(hera_logcov,origin='lower',cmap=cmap,vmin=-5,vmax=4)
+			im2 = ax2.matshow(np.log10(np.abs(cov_add)),origin='lower',cmap=cmap,vmin=-3,vmax=4)
 			ax2.set_xticklabels([])
 			ax2.set_yticklabels([])
 			ax2.set_title(r'CV Residual Covariance', fontsize=10)
@@ -1401,7 +1438,7 @@ if __name__ == "__main__":
 
 		calc_errs(recon, recon_err, sc_sig=3.0)
 		plot_cross_valid(fname='cross_validate_ps.png')
-		cv_plots(fname='cv_plots.png', frac_err_vec=log_frac_err_sc_vec, frac_yerr_vec=std_obserr_sc_vec, cbmax1=0.5)
+		cv_plots(fname='cv_plots.png', frac_err_vec=log_frac_err_vec, frac_yerr_vec=std_obserr_sc_vec, cbmax1=0.5)
 		plot_error_dist(fname='cv_err_dists.png', frac_err=log_frac_err, std_vec=exp_log_frac_err_sc_vec, xlim=(-2.5,2.5))
 		plot_data_tr_dist(fname='data_tr_dists.png')
 
@@ -1414,7 +1451,6 @@ if __name__ == "__main__":
 					kwargs_tr=kwargs_tr, lnlike_kwargs=lnprob_kwargs, kfold_Nclus=Nclus, kfold_Nsamp=Nsamp, rando=rando)
 		else:
 			e_like, t_like = S.cross_validate(grid_cv,data_cv,lnlike_kwargs=lnprob_kwargs)#,also_record=['lnlike_emu_err'])
-
 
 		fig = mp.figure(figsize=(5,5))
 		ax = fig.add_subplot(111)
@@ -1774,7 +1810,7 @@ if __name__ == "__main__":
 		# Drive Sampler
 		burn_num	= 0
 		step_num	= 2000
-		message		= "calibrate=True"
+		message		= "lhs with updated O.cov"
 
 		print_message('...driving with burn_num='+str(burn_num)+', step_num='+str(step_num),type=0)
 		S.samp_drive(pos,step_num=step_num,burn_num=burn_num)
@@ -1793,20 +1829,18 @@ if __name__ == "__main__":
 			with open('mcmc_log.txt','a') as f:
 				f.write('\n'+date+':\n'+'-'*17+'\n**'+message+'\n')
 
-
-
 		print_time()
 
 	load_chains = False
 	if load_chains == True:
 		fname = 'samp_chains_1planck.pkl'
-		f = open(fname,'rb')
-		input = pkl.Unpickler(f)
-		chain_d = input.load()
+		with open(fname,'rb') as f:
+			input = pkl.Unpickler(f)
+			chain_d = input.load()
+		globals().update(chain_d)
 		f.close()
-		chain = chain_d['chain']
-		thin = 50
-		samples = chain[:,500::thin,:].reshape((-1,chain_d['ndim']))
+		thin = 100
+		samples = chain[:,1000::thin,:].reshape((-1,chain_d['ndim']))
 
 	if trace_plots == True:
 		print_message('...plotting trace plots')
@@ -1820,7 +1854,7 @@ if __name__ == "__main__":
 			ax = fig.add_subplot(3,4,i+1)
 			ax.set_ylabel(p_latex[i],fontsize=20)
 			mp.tick_params(which='both',right='off',top='off')
-			for j in range(len(chain))[::nwalkers/200]:
+			for j in range(len(chain))[::nwalkers/20]:
 				ax.plot(chain[j,:,i],color='k',alpha=0.1)
 				ax.set_ylim(param_bounds[i])
 			ax.axhline(p_true[i],color='r',alpha=0.5,linewidth=3)
@@ -1858,8 +1892,8 @@ if __name__ == "__main__":
 		fig = mp.figure(figsize=(16,8))
 		fig.subplots_adjust(wspace=0.4,hspace=0.2)
 
-		maxlag = 200
-		thin = 1
+		maxlag = 30
+		thin = 100
 		for i in range(N_params):
 			ax = fig.add_subplot(3,4,i+1)
 			ax.set_ylim(-1,1)
@@ -1886,7 +1920,7 @@ if __name__ == "__main__":
 		levels = [0.68,0.95]
 
 		p_eps = [0.1 for i in range(5)] + [0.4 for i in range(6)]
-		p_eps = np.array(map(astats.biweight_midvariance,samples.T))*4
+		p_eps = np.array(map(astats.biweight_midvariance,samples.T))*5
 		p_lims = None #[[None,None] for i in range(N_params)]
 		p_lims = [[p_true[i]-p_eps[i],p_true[i]+p_eps[i]] for i in range(N_params)]
 		p_lims = [[grid_tr.T[i].min(), grid_tr.T[i].max()] for i in range(N_params)]
@@ -1894,9 +1928,9 @@ if __name__ == "__main__":
 		label_kwargs = {'fontsize':26}
 
 		print '...plotting triangle'
-		fig = corner.corner(samples, labels=p_latex, label_kwargs=label_kwargs,
-							truths=p_true, range=p_lims, levels=levels, smooth=0.2,
-							truth_color='orangered')
+		fig = corner.corner(samples, bins=35, labels=p_latex, label_kwargs=label_kwargs,
+							truths=p_true, range=p_lims, levels=levels, smooth=0.6,
+							truth_color='orangered', plot_datapoints=False)
 
 		add_fg_colors = True
 		if add_fg_colors == True:
@@ -1905,32 +1939,35 @@ if __name__ == "__main__":
 			axes = np.array([val for sublist in axes for val in sublist])
 			for ax in axes:
 				ax.patch.set_facecolor('purple')
-				ax.patch.set_alpha(0.075)
+				ax.patch.set_alpha(0.05)
+				ax.tick_params('both', length=10, which='major')
 
 			axes = np.array(fig.axes).reshape(11,11)[5:11,0:5].ravel()
 			for ax in axes:
 				ax.patch.set_facecolor('green')
-				ax.patch.set_alpha(0.075)
+				ax.patch.set_alpha(0.05)
+				ax.tick_params('both', length=10, which='major')
 
 			axes = np.array(fig.axes).reshape(11,11)[6:11,5:10]
 			axes = np.array([axes[i][:i+1] for i in range(len(axes))])
 			axes = np.array([val for sublist in axes for val in sublist])
 			for ax in axes:
 				ax.patch.set_facecolor('orange')
-				ax.patch.set_alpha(0.075)
+				ax.patch.set_alpha(0.05)
+				ax.tick_params('both', length=10, which='major')
 
-			p0 = matplotlib.patches.Rectangle([0,0],0,0,color='purple',alpha=0.1)
-			p1 = matplotlib.patches.Rectangle([0,0],0,0,color='green',alpha=0.1)
-			p2 = matplotlib.patches.Rectangle([0,0],0,0,color='orange',alpha=0.1)
-			fig.legend([p0,p1,p2],['Cosmo-Cosmo','Cosmo-Astro','Astro-Astro'],fontsize=60,loc='upper center',frameon=False)
+			#p0 = matplotlib.patches.Rectangle([0,0],0,0,color='purple',alpha=0.1)
+			#p1 = matplotlib.patches.Rectangle([0,0],0,0,color='green',alpha=0.1)
+			#p2 = matplotlib.patches.Rectangle([0,0],0,0,color='orange',alpha=0.1)
+			#fig.legend([p0,p1,p2],['Cosmo-Cosmo','Cosmo-Astro','Astro-Astro'],fontsize=60,loc='upper center',frameon=False)
 
 		add_prior = False
 		if add_prior == True:
 			axes = np.array(fig.axes).reshape(11,11).T
-			for i in range(N_params):
-				for j in range(i+1, N_params):
+			for i in range(5):
+				for j in range(i+1, 5):
 					plot_ellipse(cov=prior_cov[[i,j]].T[[i,j]], x_cent=prior_cent[i], y_cent=prior_cent[j],
-						ax=axes[i,j], plot_kwargs={'color':'m','zorder':5}, mass_level=0.95)
+						ax=axes[i,j], plot_kwargs={'color':'dodgerblue','zorder':5}, mass_level=0.95)
 
 		add_fisher = False
 		load_fisher = False
@@ -1946,7 +1983,7 @@ if __name__ == "__main__":
 				F = fisher_d['F']
 		
 			# Load cosmological covariance
-			select_arr = np.array([5,6,0,1,4])
+			select_arr = np.array([6,7,0,1,5])
 			planck_cov = np.loadtxt('new_planck_cov.tab')[select_arr[:,None],select_arr]
 			planck_len = len(planck_cov)
 
@@ -2002,7 +2039,7 @@ if __name__ == "__main__":
 					_ = ax.set_xticks(ax.get_xticks()[1:][::2])
 				_ = [tl.set_rotation(30) for tl in ax.get_xticklabels()]
 
-		fig.savefig('tri_plot_'+date+'.png',dpi=150,bbox_inches='tight')
+		fig.savefig('tri_plot_'+date+'.png',dpi=100,bbox_inches='tight')
 		mp.close()
 		print_time()
 
@@ -2046,7 +2083,7 @@ if __name__ == "__main__":
 		print_message('...making rec plot')
 		print_time()
 		pbound = np.array([grid_tr.T[i].max()-grid_tr.T[i].min() for i in range(11)])
-		lims = [[grid_tr.T[i].min()-pbound[i]*0.1, grid_tr.T[i].max()+pbound[i]*0.1] for i in range(11)]
+		lims = [[grid_tr.T[i].min()+pbound[i]*0.1, grid_tr.T[i].max()-pbound[i]*0.1] for i in range(11)]
 
 		gs = gridspec.GridSpec(9,14)
 		sub1 = np.concatenate([[np.array([1,0,1]) for i in range(3)],[np.array([6,5,6]) for i in range(3)]])
@@ -2152,9 +2189,10 @@ if __name__ == "__main__":
 		sub2 = np.array([np.arange(2,12,3) for i in range(3)]).T.ravel()
 		sub3 = np.array([np.arange(0,7,3) for i in range(4)]).ravel()
 		sub4 = np.array([np.arange(3,10,3) for i in range(4)]).ravel()
+		pluck = [2,3,4]
 
-		fig = mp.figure(figsize=(9,11))
-		fig.subplots_adjust(wspace=0.2,hspace=0.05)
+		fig = mp.figure(figsize=(7,9))
+		fig.subplots_adjust(wspace=0.4,hspace=0.8)
 
 		for i in range(N_params):
 			# init axes
@@ -2163,36 +2201,43 @@ if __name__ == "__main__":
 			ax.set_xlabel(p_latex[i],fontsize=20)
 
 			# fill in prior and posterior
-			pbound = np.array([prior_cent[i]-param_width[i]/2, prior_cent[i]+param_width[i]/2])
+			if i < 5:
+				pbound = np.array([prior_cent[i]-np.std(samples.T[i])*4.5, prior_cent[i]+np.std(samples.T[i])*4.5])
+			else:
+				pbound = np.array([prior_cent[i]-param_width[i]/2, prior_cent[i]+param_width[i]/2])
 			x = np.linspace(pbound[0], pbound[1], 200)
 			y = stats.norm.pdf(x, loc=prior_cent[i], scale=np.sqrt(prior_cov.diagonal()[i]))
 			hist_cent = astats.biweight_location(samples.T[i])
-			patches = ax.hist(samples.T[i]+(prior_cent[i]-hist_cent), color='dodgerblue', linewidth=1.5, alpha=0.8, histtype='step',
-							range=(pbound[0],pbound[1]), bins=80, normed=True, zorder=2)
+			patches = ax.hist(samples.T[i], color='dodgerblue', linewidth=1.5, alpha=1.0, histtype='step',
+							range=(pbound[0],pbound[1]), bins=40, normed=True, zorder=2)
 			y *= (patches[0].max()/y.max())
-			ax.plot(x, y, color='darkred', linewidth=1.5, alpha=0.75, zorder=1)
+			ax.plot(x, y, color='darkred', linewidth=2.5, alpha=0.5, zorder=1)
+			ax.set_xlim(pbound[0] - param_width[i]*0.1, pbound[1] + param_width[i]*0.1)
+			ax.set_ylim(0,patches[0].max()*1.2)
+			fig.canvas.draw()
 
 			ax.tick_params('both',length=6)
 			_ = [tl.set_size(14) for tl in ax.get_xticklabels()]
 			_ = [tl.set_rotation(0) for tl in ax.get_xticklabels()]
-			[tl.set_visible(False) for tl in ax.get_xticklabels()[::2]]
+			if i in pluck:
+				notzero = np.array(map(lambda x: len(x.get_text())>0, ax.get_xticklabels()[:]))
+				[tl.set_visible(False) for tl in np.array(ax.get_xticklabels())[notzero][::2]]
+			[tl.set_rotation(30) for tl in ax.get_xticklabels()]
 			ax.set_yticklabels([])
-			ax.set_xlim(pbound[0] - param_width[i]*0.1, pbound[1] + param_width[i]*0.1)
-			ax.set_ylim(0,patches[0].max()*1.2)
 
-		p0 = matplotlib.lines.Line2D([0],[0],color='darkred',linewidth=3)
-		p1 = matplotlib.lines.Line2D([0],[0],color='dodgerblue',linewidth=3)
+		p0 = matplotlib.lines.Line2D([0],[0],color='darkred',linewidth=5,alpha=0.5)
+		p1 = matplotlib.lines.Line2D([0],[0],color='dodgerblue',linewidth=5)
 		ax = fig.add_subplot(gs[sub1[0]:sub2[0],sub3[0]:sub4[0]])
 		mp.axis('off')
-		ax.legend([p0,p1],[r'Prior',r'Posterior'],fontsize=20,frameon=False)
+		ax.legend([p0,p1],[r'$\mathrm{Prior}$',r'$\mathrm{Posterior}$'],fontsize=18,frameon=False,loc=7)
 
-		fig.savefig('marghist_'+date+'.png',dpi=200,bbox_inches='tight')
+		fig.savefig('marghist_'+date+'.png',dpi=100,bbox_inches='tight')
 		mp.close()
 
 	if plot_map_pspec == True:
 		xdata = O.xdata
 		ydata = O.row2mat(O.ydata)
-		yerrs = O.row2mat(O.yerrs)
+		yerrs = O.row2mat(np.sqrt(S.O.cov.diagonal()))
 
 		theta_map = []
 		for b in np.arange(20,50,5):
@@ -2203,33 +2248,35 @@ if __name__ == "__main__":
 		E.predict(theta_map, **predict_kwargs)
 		ypred = O.row2mat(E.recon[0])
 
-		fig = mp.figure(figsize=(8,2))
-		fig.subplots_adjust(hspace=0.02)
+		fig = mp.figure(figsize=(8,8))
+		fig.subplots_adjust(hspace=0.03, wspace=0.03)
 
 		i = 0
-		for z in np.arange(44)[5:29:6]:
-			ax = fig.add_subplot(1,4,i+1)
+		for z in np.arange(44)[1:33:2]:
+			ax = fig.add_subplot(4,4,i+1)
 			ax.grid(True)
-			ax.errorbar(xdata[z], ydata[z], yerr=yerrs[z], color='red', fmt='s', alpha=0.9, markersize=1, ecolor='None')
-			#ax.plot(xdata[z], ypred[z], color='dodgerblue', linewidth=1.5, alpha=1.0)
+			ax.set_xscale('log')
+			ax.set_yscale('log')
+			ax.errorbar(xdata[z], ydata[z], yerr=yerrs[z], color='k', fmt='s', alpha=0.8, markersize=3,
+					ecolor='darkorange', markeredgecolor='None')
+			ax.plot(xdata[z], ypred[z], color='dodgerblue', linewidth=1.0, alpha=0.75)
+			ax.plot(k_range, data[z], color='red',alpha=0.7)
+#			ax.plot(xdata[z], ypred2[z], color='green', linewidth=1.0, alpha=0.75)
 			ax.axvspan(6e-2,1e-1, color='grey', alpha=0.2)
 			ax.axvspan(6e-2,1e-1, hatch='\\', color='None', alpha=1.0)
 			ax.set_xlim(6e-2, 5)
-			ax.set_ylim(1, 1e5)
-			ax.set_xscale('log')
-			ax.set_yscale('log')
-			ax.set_title(r'$z = '+str(z_array[z])+'$', fontsize=14)
-			if i == 0:
-				ax.set_xlabel(r'$k$ ($h$ Mpc$^{-1}$)', fontsize=13)
-				ax.set_ylabel(r'$\Delta^{2}_{21}$ (mK$^{2}$)', fontsize=13)
-			else:
+			ax.set_ylim(3e-2, 8e3)
+			ax.annotate(r'$z = '+str(z_array[z])+'$',fontsize=10,xy=(0.6,0.87),xycoords='axes fraction',bbox=dict(fc="0.95"))
+			if i == 12:
+				ax.set_xlabel(r'$k\ (\mathrm{h\ Mpc^{-1}})$', fontsize=13)
+				ax.set_ylabel(r'$\Delta^{2}_{21}\ (\mathrm{mK^{2}})$', fontsize=13)
+			if i % 4 != 0:
 				ax.set_yticklabels([])
-
+			if i < 12:
+				ax.set_xticklabels([])
 			i += 1
-
-		fig.savefig('MAP_pspec_'+date+'.png', dpi=200, bbox_inches='tight')
+		fig.savefig('MAP_pspec_'+date+'.png', dpi=250, bbox_inches='tight')
 		mp.close()
-
 
 	if ps_var_movie == True:
 
